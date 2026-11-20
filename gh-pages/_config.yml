@@ -1,0 +1,48 @@
+# Book settings
+title: Embrith
+authors: Yunshuang Xiao.
+
+# Execution settings
+execute:
+  execute_notebooks: "off"
+
+# HTML settings
+html:
+  use_repository_button: true
+  use_issues_button: true
+  home_page_in_navbar: true
+
+# Repository information
+repository:
+  url: https://github.com/yunshuangxiao/embrith
+  path_to_book: .
+  branch: main
+
+sphinx:
+  config:
+    project: "Embrith"
+
+    include_patterns:
+      - "**"
+      - "../README.md"
+      - "../README_EN.md"
+
+    html_context:
+      github_user: yunshuangxiao
+      github_repo: embrith
+      github_version: main
+      doc_path: gh-pages
+      # metatags: |
+      #   <meta name="google-site-verification" content="JOXRioKAur8pUUQhyzmuJqKs79IpGF4JPq09mDUt7W8" />
+
+    html_show_sourcelink: false
+
+    html_theme: piccolo_theme
+
+    html_static_path: ['_static']
+    html_css_files: [
+        'css/custom.css',
+    ]
+    html_js_files: [
+        'js/navbar.js',
+    ]

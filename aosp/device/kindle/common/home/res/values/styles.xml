@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- black on white, no window animations: every animation frame is a refresh of the e-ink panel -->
+    <style name="Plain" parent="@android:style/Theme.Holo.Light.NoActionBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:alertDialogTheme">@style/PlainDialog</item>
+        <item name="android:timePickerDialogTheme">@style/PlainDialog</item>
+        <item name="android:dialogTheme">@style/PlainDialog</item>
+    </style>
+
+    <!-- 下拉面板: 透明窗口, 内容自己画白底并贴在顶部, 下面露出原来的页面 -->
+    <style name="PlainPanel" parent="@style/Plain">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
+    <!-- 弹出框(AlertDialog, 时间选择等): 纯白不透明圆角框, 不压暗背后, 没有阴影和动画, 黑字黑按钮 -->
+    <style name="PlainDialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/embrith_dialog</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:colorAccent">#FF000000</item>
+        <item name="android:colorPrimary">#FF000000</item>
+        <item name="android:textColorPrimary">#FF000000</item>
+        <item name="android:textColorSecondary">#FF000000</item>
+        <item name="android:colorControlNormal">#FF000000</item>
+        <item name="android:colorControlActivated">#FF000000</item>
+    </style>
+</resources>

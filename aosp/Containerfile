@@ -1,0 +1,16 @@
+# AOSP 7.1.2 编译环境(Ubuntu 16.04(glibc 较老, 对 Android 7 最友好)). 全部装在容器里, 不动集群系统. 
+FROM docker.io/library/ubuntu:16.04
+ENV DEBIAN_FRONTEND=noninteractive LC_ALL=C.UTF-8 LANG=C.UTF-8
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git-core gnupg flex bison build-essential zip unzip curl ca-certificates \
+    zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+    libncurses5 libncurses5-dev lib32ncurses5-dev x11proto-core-dev libx11-dev \
+    lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc fontconfig \
+    python python3 openjdk-8-jdk ccache rsync bc libssl-dev squashfs-tools \
+    file procps less vim-tiny \
+ && rm -rf /var/lib/apt/lists/*
+RUN update-alternatives --set java $(update-alternatives --list java | grep java-8 | head -1) && \
+    update-alternatives --set javac $(update-alternatives --list javac | grep java-8 | head -1)
+WORKDIR /work
+# JDK 8u292+ disables TLS 1.0/1.1, which the Android 7.1 Jack server/client still use ("SSL error when connecting to the Jack server")
+RUN echo "jdk.tls.disabledAlgorithms=SSLv3, RC4, DES, MD5withRSA, DH keySize < 1024, EC keySize < 224, anon, NULL" >> /etc/java-8-openjdk/security/java.security

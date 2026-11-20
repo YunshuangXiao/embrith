@@ -1,0 +1,153 @@
+# Kindle PW6 container support. Imported first by /init.rc (patched in by 05-apply.sh).
+# The Kindle's own root is kept at /host after pivot_root; it is used to borrow device nodes.
+
+# This init does not read /system/etc/init by itself (that normally happens after mount_all). Import what we need,
+# file by file. Services of class "main" are only started in the "full" stage.
+import /system/etc/init/logd.rc
+import /system/etc/init/debuggerd.rc
+import /system/etc/init/servicemanager.rc
+import /system/etc/init/surfaceflinger.rc
+import /system/etc/init/bootanim.rc
+import /system/etc/init/vold.rc
+import /system/etc/init/netd.rc
+import /system/etc/init/installd.rc
+import /system/etc/init/keystore.rc
+import /system/etc/init/gatekeeperd.rc
+import /system/etc/init/audioserver.rc
+import /system/etc/init/mediaserver.rc
+
+on early-init
+    # init waits for ueventd's coldboot marker; there is no ueventd, so create it
+    write /dev/.coldboot_done 0
+
+    # No ashmem driver in this kernel: apps that open /dev/ashmem themselves get a memfd from this library (kindleashmem/).
+    # Exported here so every process init starts (zygote, and so every app) has it.
+    export LD_PRELOAD /system/lib/libkindleashmem.so
+
+    # Android must not change the Kindle's kernel knobs or suspend the Kindle.
+    # SysRq is global: "u" would remount every filesystem of the Kindle read-only (android_reboot does that first).
+    mount none /proc/sysrq-trigger /proc/sysrq-trigger bind
+    mount none /proc/sysrq-trigger /proc/sysrq-trigger remount bind ro
+    # init.rc writes 4 ("SIGBUS on unaligned access") to /proc/cpu/alignment: that is a GLOBAL setting of the Kindle's kernel.
+    mount none /proc/cpu/alignment /proc/cpu/alignment bind
+    mount none /proc/cpu/alignment /proc/cpu/alignment remount bind ro
+    # /proc/sys is read-only, except /proc/sys/net: that is the sysctl tree of the container's own network namespace, and netd /
+    # IpManager must write the IPv6 settings of eth0 there (without it DHCP fails: "Failed to disable IPv6 (Read-only file system)").
+    mount none /proc/sys/net /proc/sys/net bind
+    mount none /proc/sys /proc/sys bind rec
+    mount none /proc/sys /proc/sys remount bind ro
+    mount none /sys/power /sys/power bind
+    mount none /sys/power /sys/power remount bind ro
+
+    # There is no ueventd: bind the few device nodes we need. They are private copies made by the
+    # launcher in /var/tmp/embrith-dev (the host root is kept at /host after pivot_root).
+    # Android's "binder" is a free binder device of the Kindle (the Kindle itself uses /dev/binder).
+    mkdir /dev/input 0755 root root
+    write /dev/binder 0
+    write /dev/null 0
+    write /dev/random 0
+    write /dev/urandom 0
+    write /dev/zero 0
+    write /dev/full 0
+    write /dev/tty 0
+    write /dev/input/event0 0
+    write /dev/input/event1 0
+    write /dev/input/event2 0
+    mount none /host/var/tmp/embrith-dev/binder /dev/binder bind
+    mount none /host/var/tmp/embrith-dev/null /dev/null bind
+    mount none /host/var/tmp/embrith-dev/random /dev/random bind
+    mount none /host/var/tmp/embrith-dev/urandom /dev/urandom bind
+    mount none /host/var/tmp/embrith-dev/zero /dev/zero bind
+    mount none /host/var/tmp/embrith-dev/full /dev/full bind
+    mount none /host/var/tmp/embrith-dev/tty /dev/tty bind
+    mount none /host/var/tmp/embrith-dev/input/event0 /dev/input/event0 bind
+    mount none /host/var/tmp/embrith-dev/input/event1 /dev/input/event1 bind
+    mount none /host/var/tmp/embrith-dev/input/event2 /dev/input/event2 bind
+    chmod 0666 /dev/binder
+    symlink pts/ptmx /dev/ptmx
+    chmod 0666 /dev/pts/ptmx
+    chmod 0666 /dev/null
+    chmod 0666 /dev/random
+    chmod 0666 /dev/urandom
+    chmod 0666 /dev/zero
+    chmod 0666 /dev/full
+    chmod 0666 /dev/tty
+    chown root input /dev/input/event0
+    chown root input /dev/input/event1
+    chown root input /dev/input/event2
+    chmod 0660 /dev/input/event0
+    chmod 0660 /dev/input/event1
+    chmod 0660 /dev/input/event2
+
+    # Shared frame buffer to the Kindle-side display daemon (kdispd)
+    mkdir /dev/kdisp 0777 root root
+    mount none /host/var/tmp/kdisp /dev/kdisp bind
+
+on post-fs-data
+    # /data was mounted by the launcher, not by mount_all: tell init it is unencrypted.
+    setprop ro.crypto.state unencrypted
+    setprop vold.post_fs_data_done 1
+
+# Same as the stock lmkd.rc but not "critical" (a crash must not end the whole container).
+service lmkd /system/bin/lmkd
+    class core
+    group root readproc
+    socket lmkd seqpacket 0660 system system
+    writepid /dev/cpuset/system-background/tasks
+
+# ---- staged bring-up: ro.embrith.stage (written into /default.prop by the launcher) ----
+#   init : only init (+logd, debuggerd)
+#   core : + core class (servicemanager, surfaceflinger, healthd, lmkd)
+#   full : + vold and the main class (zygote, netd, ...)
+on embrith-core && property:ro.embrith.stage=core
+    class_start core
+
+on embrith-core && property:ro.embrith.stage=full
+    class_start core
+
+on embrith-vold && property:ro.embrith.stage=full
+    start vold
+
+on post-fs-data && property:ro.embrith.stage=full
+    trigger nonencrypted
+
+# user 0's storage directories. init.rc used to get them from "init_user0"
+# (vold creates them), which we have to skip: it waits for vold, which only starts later. Without /data/user_de/0
+# installd cannot create any app data directory and system_server dies in SettingsProvider.
+on post-fs-data
+    mkdir /data/user_de 0711 system system
+    mkdir /data/user_de/0 0771 system system
+    mkdir /data/system_de 0770 system system
+    mkdir /data/system_de/0 0770 system system
+    mkdir /data/system_ce 0770 system system
+    mkdir /data/system_ce/0 0770 system system
+    mkdir /data/misc_de 01771 system misc
+    mkdir /data/misc_de/0 01771 system misc
+    mkdir /data/misc_ce 01771 system misc
+    mkdir /data/misc_ce/0 01771 system misc
+    mkdir /data/media 0770 media_rw media_rw
+    mkdir /data/media/0 0770 media_rw media_rw
+    mkdir /data/misc/profiles 0771 system system
+    mkdir /data/misc/profiles/cur 0771 system system
+    mkdir /data/misc/profiles/cur/0 0771 system system
+    mkdir /data/misc/profiles/ref 0771 system system
+
+# surfaceflinger must load libGLES_android (ES 1, qemu.gles 0), apps of the newer WebView must get SwiftShader (qemu.gles 2, set by
+# webview_apply, which also keeps the wanted value in embrith.gles). While surfaceflinger restarts the value has to be 0 and
+# embrith.sfready 0. embrith-gles.sh sets embrith.sfready to 1 once the new surfaceflinger has loaded its EGL. From then on, every
+# time something else writes 0 to qemu.gles (the EGL loader does it in each process that is allowed to, zygote included), it is set
+# back to 2. Only for the newer WebView: for the old one 0 is the right value, and without the embrith.gles condition the rule would
+# fire on its own writes.
+on property:init.svc.surfaceflinger=restarting
+    setprop embrith.sfready 0
+    setprop qemu.gles 0
+
+on property:init.svc.surfaceflinger=running
+    start embrith-gles
+
+on property:qemu.gles=0 && property:embrith.gles=2 && property:embrith.sfready=1
+    setprop qemu.gles 2
+
+service embrith-gles /system/bin/sh /system/bin/embrith-gles.sh
+    disabled
+    oneshot

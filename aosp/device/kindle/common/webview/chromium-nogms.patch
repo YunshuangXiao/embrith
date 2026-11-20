@@ -1,0 +1,923 @@
+--- a/content/public/android/BUILD.gn
++++ b/content/public/android/BUILD.gn
+@@ -142,10 +142,6 @@
+   deps = [
+     ":content_java_resources",
+     ":content_main_dex_java",
+-    "$google_play_services_package:google_play_services_auth_api_phone_java",
+-    "$google_play_services_package:google_play_services_base_java",
+-    "$google_play_services_package:google_play_services_basement_java",
+-    "$google_play_services_package:google_play_services_tasks_java",
+     "//base:base_java",
+     "//base:jni_java",
+     "//base:process_launcher_java",
+--- a/content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java
++++ b/content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java
+@@ -4,202 +4,39 @@
+ 
+ package org.chromium.content.browser.sms;
+ 
+-import androidx.annotation.VisibleForTesting;
+-
+-import com.google.android.gms.common.ConnectionResult;
+-import com.google.android.gms.common.GoogleApiAvailability;
+-
+-import org.chromium.base.ContextUtils;
+-import org.chromium.base.Log;
+-import org.chromium.base.ResettersForTesting;
+ import org.chromium.base.annotations.CalledByNative;
+ import org.chromium.base.annotations.JNINamespace;
+ import org.chromium.base.annotations.NativeMethods;
+ import org.chromium.ui.base.WindowAndroid;
+ 
+ /**
+- * Simple proxy that provides C++ code with a pathway to the GMS OTP code
+- * retrieving APIs.
+- * It can operate in three different backend modes which is determined on
+- * construction:
+- *  1. User Consent: use the user consent API (older method with sub-optimal UX)
+- *  2. Verification: use the browser code API (newer method)
+- *  3. Auto: prefers to use the verification method but if it is not available
+- *           automatically falls back to using the User Consent method.
+- *
++ * Embrith: stub. Google Play services are not part of this build, so there is no SMS retriever.
++ * The methods called from native code are kept; every request is reported as not available.
+  */
+ @JNINamespace("content")
+ public class SmsProviderGms {
+-    private static final String TAG = "SmsProviderGms";
+-    private static final int MIN_GMS_VERSION_NUMBER_WITH_CODE_BROWSER_BACKEND = 202990000;
+     private final long mSmsProviderGmsAndroid;
+ 
+-    private final @GmsBackend int mBackend;
+-    private SmsUserConsentReceiver mUserConsentReceiver;
+-    private SmsVerificationReceiver mVerificationReceiver;
+-
+-    private Wrappers.WebOTPServiceContext mContext;
+-    private WindowAndroid mWindow;
+-    private Wrappers.SmsRetrieverClientWrapper mClient;
+-
+-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+-    public SmsProviderGms(long smsProviderGmsAndroid, @GmsBackend int backend,
+-            boolean isVerificationBackendAvailable) {
++    private SmsProviderGms(long smsProviderGmsAndroid) {
+         mSmsProviderGmsAndroid = smsProviderGmsAndroid;
+-        mBackend = backend;
+-        mContext = new Wrappers.WebOTPServiceContext(ContextUtils.getApplicationContext(), this);
+-
+-        // Creates an mVerificationReceiver regardless of the backend to support requests from
+-        // remote devices.
+-        if (isVerificationBackendAvailable) {
+-            mVerificationReceiver = new SmsVerificationReceiver(this, mContext);
+-        }
+-
+-        if (mBackend == GmsBackend.AUTO || mBackend == GmsBackend.USER_CONSENT) {
+-            mUserConsentReceiver = new SmsUserConsentReceiver(this, mContext);
+-        }
+-
+-        Log.i(TAG, "construction successfull %s, %s", mVerificationReceiver, mUserConsentReceiver);
+-    }
+-
+-    public void setUserConsentReceiverForTesting(SmsUserConsentReceiver userConsentReceiver) {
+-        var oldValue = mUserConsentReceiver;
+-        mUserConsentReceiver = userConsentReceiver;
+-        ResettersForTesting.register(() -> mUserConsentReceiver = oldValue);
+-    }
+-
+-    public void setVerificationReceiverForTesting(SmsVerificationReceiver verificationReceiver) {
+-        var oldValue = mVerificationReceiver;
+-        mVerificationReceiver = verificationReceiver;
+-        ResettersForTesting.register(() -> mVerificationReceiver = oldValue);
+-    }
+-
+-    public SmsUserConsentReceiver getUserConsentReceiverForTesting() {
+-        return mUserConsentReceiver;
+-    }
+-
+-    public SmsVerificationReceiver getVerificationReceiverForTesting() {
+-        return mVerificationReceiver;
+     }
+ 
+     // Methods that are called by native implementation
+     @CalledByNative
+     private static SmsProviderGms create(long smsProviderGmsAndroid, @GmsBackend int backend) {
+-        Log.d(TAG, "Creating SmsProviderGms");
+-        boolean isVerificationBackendAvailable =
+-                GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(
+-                        ContextUtils.getApplicationContext(),
+-                        MIN_GMS_VERSION_NUMBER_WITH_CODE_BROWSER_BACKEND)
+-                == ConnectionResult.SUCCESS;
+-        return new SmsProviderGms(smsProviderGmsAndroid, backend, isVerificationBackendAvailable);
++        return new SmsProviderGms(smsProviderGmsAndroid);
+     }
+ 
+     @CalledByNative
+-    private void destroy() {
+-        if (mVerificationReceiver != null) mVerificationReceiver.destroy();
+-        if (mUserConsentReceiver != null) mUserConsentReceiver.destroy();
+-    }
++    private void destroy() {}
+ 
+     @CalledByNative
+-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+     public void listen(WindowAndroid window, boolean isLocalRequest) {
+-        mWindow = window;
+-
+-        // Using the verification receiver is preferable but also start user consent receiver in
+-        // case the verification receiver fails. i.e. if the start of the verification retriever has
+-        // not been successful and the SMS arrives, we fall back to the user consent receiver to
+-        // handle it. Note that starting both receiver means that we may end up using the user
+-        // consent receiver even when the preferred verification backend is available but slow. But
+-        // this is acceptable given that handling SMS should be done in timely manner.
+-        // If the SMS retrieval request is made from a remote device, e.g. desktop, we only proceed
+-        // with the verification receiver because the user consent receiver introduces too much user
+-        // friction. In addition, we do not apply the fallback logic in such case.
+-        boolean shouldUseVerificationReceiver = mVerificationReceiver != null
+-                && (!isLocalRequest || mBackend != GmsBackend.USER_CONSENT);
+-        boolean shouldUseUserConsentReceiver = mUserConsentReceiver != null && isLocalRequest
+-                && mBackend != GmsBackend.VERIFICATION && window != null;
+-        if (shouldUseVerificationReceiver) mVerificationReceiver.listen(isLocalRequest);
+-        if (shouldUseUserConsentReceiver) mUserConsentReceiver.listen(window);
+-    }
+-
+-    /**
+-     * Destroys the user consent receiver if the verification receiver succeeded with a local
+-     * request.
+-     *
+-     * @param isLocalRequest Represents whether this request is from local device or not
+-     */
+-    public void verificationReceiverSucceeded(boolean isLocalRequest) {
+-        if (!isLocalRequest) return;
+-        Log.d(TAG, "DestroyUserConsentReceiver");
+-        if (mUserConsentReceiver != null) mUserConsentReceiver.destroy();
+-    }
+-
+-    /**
+-     * Destroys the verification receiver if it failed with a local request.
+-     *
+-     * @param isLocalRequest Represents whether this request is from local device or not
+-     */
+-    public void verificationReceiverFailed(boolean isLocalRequest) {
+-        if (!isLocalRequest) return;
+-        Log.d(TAG, "DestroyVerificationReceiver");
+-        if (mVerificationReceiver != null) mVerificationReceiver.destroy();
+-    }
+-
+-    void onMethodNotAvailable(boolean isLocalRequest) {
+-        assert (mBackend != GmsBackend.USER_CONSENT || !isLocalRequest);
+-
+-        // Note on caching method availability status: It is possible to cache the fact that calling
+-        // into verification backend has failed and avoid trying it again on subsequent calls. But
+-        // since that can change at runtime (e.g., if Chrome becomes default browser) then we may
+-        // need to invalidate that cached status. To simplify things we simply attempt the
+-        // verification method first on *each request* and fallback to the user consent method if it
+-        // fails. The initial call to verification is expected to be cheap so this should not have
+-        // any noticeable impact.
+-        // Note that the fallback logic is only applicable if the SMS retrieval request is made from
+-        // a local device.
+-        if (mBackend == GmsBackend.VERIFICATION || !isLocalRequest) onNotAvailable();
+-    }
+-
+-    // --------- Callbacks for receivers
+-
+-    void onReceive(String sms, @GmsBackend int backend) {
+-        SmsProviderGmsJni.get().onReceive(mSmsProviderGmsAndroid, sms, backend);
+-    }
+-    void onTimeout() {
+-        SmsProviderGmsJni.get().onTimeout(mSmsProviderGmsAndroid);
+-    }
+-    void onCancel() {
+-        SmsProviderGmsJni.get().onCancel(mSmsProviderGmsAndroid);
+-    }
+-    void onNotAvailable() {
+         SmsProviderGmsJni.get().onNotAvailable(mSmsProviderGmsAndroid);
+     }
+ 
+-    public WindowAndroid getWindow() {
+-        return mWindow;
+-    }
+-
+-    public Wrappers.SmsRetrieverClientWrapper getClient() {
+-        if (mClient != null) {
+-            return mClient;
+-        }
+-        mClient = new Wrappers.SmsRetrieverClientWrapper(
+-                mUserConsentReceiver != null ? mUserConsentReceiver.createClient() : null,
+-                mVerificationReceiver != null ? mVerificationReceiver.createClient() : null);
+-
+-        return mClient;
+-    }
+-
+     @CalledByNative
+-    private void setClientAndWindow(
+-            Wrappers.SmsRetrieverClientWrapper client, WindowAndroid window) {
+-        assert mClient == null;
+-        assert mWindow == null;
+-        mClient = client;
+-        mWindow = window;
+-
+-        mClient.setContext(mContext);
+-    }
++    private void setClientAndWindow(Object client, WindowAndroid window) {}
+ 
+     @NativeMethods
+     interface Natives {
+--- a/content/public/android/java/src/org/chromium/content/browser/sms/SmsUserConsentReceiver.java
++++ b/content/public/android/java/src/org/chromium/content/browser/sms/SmsUserConsentReceiver.java
+@@ -4,127 +4,7 @@
+ 
+ package org.chromium.content.browser.sms;
+ 
+-import android.app.Activity;
+-import android.content.BroadcastReceiver;
+-import android.content.Context;
+-import android.content.Intent;
+-import android.content.IntentFilter;
+-
+-import com.google.android.gms.auth.api.phone.SmsRetriever;
+-import com.google.android.gms.auth.api.phone.SmsRetrieverClient;
+-import com.google.android.gms.common.api.CommonStatusCodes;
+-import com.google.android.gms.common.api.Status;
+-import com.google.android.gms.tasks.OnFailureListener;
+-import com.google.android.gms.tasks.Task;
+-
+-import org.chromium.base.ContextUtils;
+-import org.chromium.base.Log;
+-import org.chromium.ui.base.WindowAndroid;
+-
+ /**
+- * Encapsulates logic to retrieve OTP code via SMS User Consent API.
++ * Embrith: stub. The Google Play services SMS retriever is not part of this build.
+  */
+-public class SmsUserConsentReceiver extends BroadcastReceiver {
+-    private static final String TAG = "SmsUserConsentRcvr";
+-    private static final boolean DEBUG = false;
+-    private final SmsProviderGms mProvider;
+-    private boolean mDestroyed;
+-    private Wrappers.WebOTPServiceContext mContext;
+-
+-    public SmsUserConsentReceiver(SmsProviderGms provider, Wrappers.WebOTPServiceContext context) {
+-        mDestroyed = false;
+-        mProvider = provider;
+-        mContext = context;
+-
+-        // A broadcast receiver is registered upon the creation of this class
+-        // which happens when the SMS Retriever API is used for the first time
+-        // since chrome last restarted (which, on android, happens frequently).
+-        // The broadcast receiver is fairly lightweight (e.g. it responds
+-        // quickly without much computation).
+-        // If this broadcast receiver becomes more heavyweight, we should make
+-        // this registration expire after the SMS message is received.
+-        if (DEBUG) Log.d(TAG, "Registering intent filters.");
+-        IntentFilter filter = new IntentFilter();
+-        filter.addAction(SmsRetriever.SMS_RETRIEVED_ACTION);
+-        ContextUtils.registerExportedBroadcastReceiver(
+-                mContext, this, filter, SmsRetriever.SEND_PERMISSION);
+-    }
+-
+-    public SmsRetrieverClient createClient() {
+-        return SmsRetriever.getClient(mContext);
+-    }
+-
+-    public void destroy() {
+-        if (mDestroyed) return;
+-        if (DEBUG) Log.d(TAG, "Destroying SmsUserConsentReceiver.");
+-        mDestroyed = true;
+-        mContext.unregisterReceiver(this);
+-    }
+-
+-    @Override
+-    public void onReceive(Context context, Intent intent) {
+-        if (DEBUG) Log.d(TAG, "Received something!");
+-
+-        if (mDestroyed) {
+-            return;
+-        }
+-
+-        if (!SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
+-            return;
+-        }
+-
+-        if (intent.getExtras() == null) {
+-            return;
+-        }
+-
+-        final Status status;
+-
+-        try {
+-            status = (Status) intent.getParcelableExtra(SmsRetriever.EXTRA_STATUS);
+-        } catch (Throwable e) {
+-            if (DEBUG) Log.d(TAG, "Error getting parceable.");
+-            return;
+-        }
+-
+-        switch (status.getStatusCode()) {
+-            case CommonStatusCodes.SUCCESS:
+-                assert mProvider.getWindow() != null;
+-
+-                Intent consentIntent =
+-                        intent.getExtras().getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+-                try {
+-                    mProvider.getWindow().showIntent(consentIntent,
+-                            (resultCode, data) -> onConsentResult(resultCode, data), null);
+-                } catch (android.content.ActivityNotFoundException e) {
+-                    if (DEBUG) Log.d(TAG, "Error starting activity for result.");
+-                }
+-                break;
+-            case CommonStatusCodes.TIMEOUT:
+-                if (DEBUG) Log.d(TAG, "Timeout");
+-                mProvider.onTimeout();
+-                break;
+-        }
+-    }
+-
+-    void onConsentResult(int resultCode, Intent data) {
+-        if (resultCode == Activity.RESULT_OK) {
+-            String message = data.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+-            mProvider.onReceive(message, GmsBackend.USER_CONSENT);
+-        } else if (resultCode == Activity.RESULT_CANCELED) {
+-            if (DEBUG) Log.d(TAG, "Activity result cancelled.");
+-            mProvider.onCancel();
+-        }
+-    }
+-
+-    public void listen(WindowAndroid windowAndroid) {
+-        Task<Void> task = mProvider.getClient().startSmsUserConsent(null);
+-
+-        task.addOnFailureListener(new OnFailureListener() {
+-            @Override
+-            public void onFailure(Exception e) {
+-                Log.e(TAG, "Task failed to start", e);
+-            }
+-        });
+-        if (DEBUG) Log.d(TAG, "Installed task");
+-    }
+-}
++public class SmsUserConsentReceiver {}
+--- a/content/public/android/java/src/org/chromium/content/browser/sms/SmsVerificationReceiver.java
++++ b/content/public/android/java/src/org/chromium/content/browser/sms/SmsVerificationReceiver.java
+@@ -4,215 +4,7 @@
+ 
+ package org.chromium.content.browser.sms;
+ 
+-import android.app.Activity;
+-import android.app.PendingIntent;
+-import android.content.BroadcastReceiver;
+-import android.content.Context;
+-import android.content.Intent;
+-import android.content.IntentFilter;
+-
+-import com.google.android.gms.auth.api.phone.SmsCodeBrowserClient;
+-import com.google.android.gms.auth.api.phone.SmsCodeRetriever;
+-import com.google.android.gms.auth.api.phone.SmsRetriever;
+-import com.google.android.gms.auth.api.phone.SmsRetrieverStatusCodes;
+-import com.google.android.gms.common.api.ApiException;
+-import com.google.android.gms.common.api.CommonStatusCodes;
+-import com.google.android.gms.common.api.ResolvableApiException;
+-import com.google.android.gms.common.api.Status;
+-import com.google.android.gms.tasks.Task;
+-
+-import org.chromium.base.ContextUtils;
+-import org.chromium.base.Log;
+-import org.chromium.base.metrics.RecordHistogram;
+-import org.chromium.content.browser.sms.Wrappers.WebOTPServiceContext;
+-import org.chromium.ui.base.WindowAndroid;
+-
+ /**
+- * Encapsulates logic to retrieve OTP code via SMS Browser Code API.
+- * See also:
+- * https://developers.google.com/android/reference/com/google/android/gms/auth/api/phone/SmsCodeBrowserClient
+- *
+- * TODO(majidvp): rename legacy Verification name to more appropriate name (
+- *  e.g., BrowserCode.
++ * Embrith: stub. The Google Play services SMS retriever is not part of this build.
+  */
+-public class SmsVerificationReceiver extends BroadcastReceiver {
+-    private static final int CODE_PERMISSION_REQUEST = 1;
+-    private static final String TAG = "SmsVerification";
+-    private static final boolean DEBUG = false;
+-    private final SmsProviderGms mProvider;
+-    private boolean mDestroyed;
+-    private Wrappers.WebOTPServiceContext mContext;
+-    private enum BackendAvailability {
+-        AVAILABLE,
+-        API_NOT_CONNECTED,
+-        PLATFORM_NOT_SUPPORTED,
+-        API_NOT_AVAILABLE,
+-        NUM_ENTRIES
+-    }
+-
+-    public SmsVerificationReceiver(SmsProviderGms provider, WebOTPServiceContext context) {
+-        if (DEBUG) Log.d(TAG, "Creating SmsVerificationReceiver.");
+-
+-        mDestroyed = false;
+-        mProvider = provider;
+-        mContext = context;
+-
+-        // A broadcast receiver is registered upon the creation of this class which happens when the
+-        // SMS Retriever API or SMS Browser Code API is used for the first time since chrome last
+-        // restarted (which, on android, happens frequently). The broadcast receiver is fairly
+-        // lightweight (e.g. it responds quickly without much computation). If this broadcast
+-        // receiver becomes more heavyweight, we should make this registration expire after the SMS
+-        // message is received.
+-        if (DEBUG) Log.i(TAG, "Registering intent filters.");
+-        IntentFilter filter = new IntentFilter();
+-        filter.addAction(SmsCodeRetriever.SMS_CODE_RETRIEVED_ACTION);
+-
+-        // The SEND_PERMISSION permission is not documented to held by the sender of this broadcast,
+-        // but it's coming from the same place the UserConsent (SmsRetriever.SMS_RETRIEVED_ACTION)
+-        // broadcast is coming from, so the sender will be holding this permission. This prevents
+-        // other apps from spoofing verification codes.
+-        ContextUtils.registerExportedBroadcastReceiver(
+-                mContext, this, filter, SmsRetriever.SEND_PERMISSION);
+-    }
+-
+-    public SmsCodeBrowserClient createClient() {
+-        return SmsCodeRetriever.getBrowserClient(mContext);
+-    }
+-
+-    public void destroy() {
+-        if (mDestroyed) return;
+-        if (DEBUG) Log.d(TAG, "Destroying SmsVerificationReceiver.");
+-        mDestroyed = true;
+-        mContext.unregisterReceiver(this);
+-    }
+-
+-    @Override
+-    public void onReceive(Context context, Intent intent) {
+-        if (DEBUG) Log.d(TAG, "Received something!");
+-
+-        if (mDestroyed) {
+-            return;
+-        }
+-
+-        if (!SmsCodeRetriever.SMS_CODE_RETRIEVED_ACTION.equals(intent.getAction())) {
+-            return;
+-        }
+-
+-        if (intent.getExtras() == null) {
+-            return;
+-        }
+-
+-        final Status status;
+-
+-        try {
+-            status = (Status) intent.getParcelableExtra(SmsRetriever.EXTRA_STATUS);
+-        } catch (Throwable e) {
+-            if (DEBUG) Log.d(TAG, "Error getting parceable");
+-            return;
+-        }
+-
+-        switch (status.getStatusCode()) {
+-            case CommonStatusCodes.SUCCESS:
+-                String message = intent.getExtras().getString(SmsCodeRetriever.EXTRA_SMS_CODE_LINE);
+-                if (DEBUG) Log.d(TAG, "Got message: %s!", message);
+-                mProvider.onReceive(message, GmsBackend.VERIFICATION);
+-                break;
+-            case CommonStatusCodes.TIMEOUT:
+-                if (DEBUG) Log.d(TAG, "Timeout");
+-                mProvider.onTimeout();
+-                break;
+-        }
+-    }
+-
+-    public void onPermissionDone(int resultCode, boolean isLocalRequest) {
+-        if (resultCode == Activity.RESULT_OK) {
+-            // We have been granted permission to use the SmsCoderetriever so restart the process.
+-            // |listen| will record the backend availability so no need to do it here.
+-            if (DEBUG) Log.d(TAG, "The one-time permission was granted");
+-            listen(isLocalRequest);
+-        } else {
+-            cancelRequestAndReportBackendAvailability();
+-            if (DEBUG) Log.d(TAG, "The one-time permission was rejected");
+-        }
+-    }
+-
+-    /*
+-     * Handles failure for the `SmsCodeBrowserClient.startSmsCodeRetriever()`
+-     * task.
+-     */
+-    public void onRetrieverTaskFailure(boolean isLocalRequest, Exception e) {
+-        if (DEBUG) Log.d(TAG, "Task failed. Attempting recovery.", e);
+-        ApiException exception = (ApiException) e;
+-        if (exception.getStatusCode() == SmsRetrieverStatusCodes.API_NOT_CONNECTED) {
+-            reportBackendAvailability(BackendAvailability.API_NOT_CONNECTED);
+-            mProvider.onMethodNotAvailable(isLocalRequest);
+-            Log.d(TAG, "update GMS services.");
+-        } else if (exception.getStatusCode() == SmsRetrieverStatusCodes.PLATFORM_NOT_SUPPORTED) {
+-            reportBackendAvailability(BackendAvailability.PLATFORM_NOT_SUPPORTED);
+-            mProvider.onMethodNotAvailable(isLocalRequest);
+-            Log.d(TAG, "old android platform.");
+-        } else if (exception.getStatusCode() == SmsRetrieverStatusCodes.API_NOT_AVAILABLE) {
+-            reportBackendAvailability(BackendAvailability.API_NOT_AVAILABLE);
+-            mProvider.onMethodNotAvailable(isLocalRequest);
+-            Log.d(TAG, "not the default browser.");
+-        } else if (exception.getStatusCode() == SmsRetrieverStatusCodes.USER_PERMISSION_REQUIRED) {
+-            cancelRequestAndReportBackendAvailability();
+-            Log.d(TAG, "user permission is required.");
+-        } else if (exception.getStatusCode() == CommonStatusCodes.RESOLUTION_REQUIRED) {
+-            if (exception instanceof ResolvableApiException) {
+-                // This occurs if the default browser is in NONE permission
+-                // state. Resolve it by calling PendingIntent.send() method.
+-                // This shows the consent dialog to user so they grant
+-                // one-time permission. The dialog result will be received
+-                // via `onPermissionDone()`
+-                ResolvableApiException rex = (ResolvableApiException) exception;
+-                try {
+-                    PendingIntent resolutionIntent = rex.getResolution();
+-                    mProvider.getWindow().showIntent(
+-                            resolutionIntent, new WindowAndroid.IntentCallback() {
+-                                @Override
+-                                public void onIntentCompleted(int resultCode, Intent data) {
+-                                    // Backend availability will be recorded inside
+-                                    // |onPermissionDone|.
+-                                    onPermissionDone(resultCode, isLocalRequest);
+-                                }
+-                            }, null);
+-                } catch (Exception ex) {
+-                    cancelRequestAndReportBackendAvailability();
+-                    Log.e(TAG, "Cannot launch user permission", ex);
+-                }
+-            }
+-        } else {
+-            Log.w(TAG, "Unexpected exception", e);
+-        }
+-    }
+-
+-    public void listen(boolean isLocalRequest) {
+-        Wrappers.SmsRetrieverClientWrapper client = mProvider.getClient();
+-        Task<Void> task = client.startSmsCodeBrowserRetriever();
+-
+-        task.addOnSuccessListener(unused -> {
+-            this.reportBackendAvailability(BackendAvailability.AVAILABLE);
+-            mProvider.verificationReceiverSucceeded(isLocalRequest);
+-        });
+-        task.addOnFailureListener((Exception e) -> {
+-            this.onRetrieverTaskFailure(isLocalRequest, e);
+-            mProvider.verificationReceiverFailed(isLocalRequest);
+-        });
+-
+-        if (DEBUG) Log.d(TAG, "Installed task");
+-    }
+-
+-    public void reportBackendAvailability(BackendAvailability availability) {
+-        if (DEBUG) Log.d(TAG, "Backend availability: %d", availability.ordinal());
+-        RecordHistogram.recordEnumeratedHistogram("Blink.Sms.BackendAvailability",
+-                availability.ordinal(), BackendAvailability.NUM_ENTRIES.ordinal());
+-    }
+-
+-    // Handles the case when the backend is available but user has previously denied to grant the
+-    // permission or we cannot launch user permission.
+-    private void cancelRequestAndReportBackendAvailability() {
+-        reportBackendAvailability(BackendAvailability.AVAILABLE);
+-        mProvider.onCancel();
+-    }
+-}
++public class SmsVerificationReceiver {}
+--- a/content/public/android/java/src/org/chromium/content/browser/sms/Wrappers.java
++++ b/content/public/android/java/src/org/chromium/content/browser/sms/Wrappers.java
+@@ -4,130 +4,11 @@
+ 
+ package org.chromium.content.browser.sms;
+ 
+-import android.content.BroadcastReceiver;
+-import android.content.Context;
+-import android.content.ContextWrapper;
+-import android.content.Intent;
+-import android.content.IntentFilter;
+-import android.os.Build;
+-import android.os.Handler;
+-
+-import androidx.annotation.RequiresApi;
+-
+-import com.google.android.gms.auth.api.phone.SmsCodeBrowserClient;
+-import com.google.android.gms.auth.api.phone.SmsCodeRetriever;
+-import com.google.android.gms.auth.api.phone.SmsRetrieverClient;
+-import com.google.android.gms.tasks.Task;
+-
++/**
++ * Embrith: stub. The wrappers around the Google Play services SMS retriever are not part of this
++ * build.
++ */
+ class Wrappers {
+     // Prevent instantiation.
+     private Wrappers() {}
+-
+-    /**
+-     * Wraps com.google.android.gms.auth.api.phone.SmsRetrieverClient.
+-     */
+-    static class SmsRetrieverClientWrapper {
+-        // Used for user consent flow.
+-        private final SmsRetrieverClient mSmsRetrieverClient;
+-        // Used for browser code flow.
+-        private final SmsCodeBrowserClient mSmsCodeBrowserClient;
+-        private WebOTPServiceContext mContext;
+-
+-        public SmsRetrieverClientWrapper(
+-                SmsRetrieverClient smsRetrieverClient, SmsCodeBrowserClient smsCodeBrowserClient) {
+-            mSmsRetrieverClient = smsRetrieverClient;
+-            mSmsCodeBrowserClient = smsCodeBrowserClient;
+-        }
+-
+-        public void setContext(WebOTPServiceContext context) {
+-            mContext = context;
+-        }
+-
+-        public WebOTPServiceContext getContext() {
+-            return mContext;
+-        }
+-
+-        public Task<Void> startSmsCodeBrowserRetriever() {
+-            return mSmsCodeBrowserClient.startSmsCodeRetriever();
+-        }
+-
+-        public Task<Void> startSmsUserConsent(String senderAddress) {
+-            return mSmsRetrieverClient.startSmsUserConsent(senderAddress);
+-        }
+-    }
+-
+-    /**
+-     * Extends android.content.ContextWrapper to store and retrieve the
+-     * registered BroadcastReceiver.
+-     */
+-    static class WebOTPServiceContext extends ContextWrapper {
+-        private BroadcastReceiver mVerificationReceiver;
+-        private BroadcastReceiver mUserConsentReceiver;
+-        private final SmsProviderGms mSmsProviderGms;
+-
+-        public WebOTPServiceContext(Context context, SmsProviderGms provider) {
+-            super(context);
+-            mSmsProviderGms = provider;
+-        }
+-
+-        public SmsVerificationReceiver getRegisteredVerificationReceiver() {
+-            return (SmsVerificationReceiver) mVerificationReceiver;
+-        }
+-
+-        public SmsUserConsentReceiver getRegisteredUserConsentReceiver() {
+-            return (SmsUserConsentReceiver) mUserConsentReceiver;
+-        }
+-
+-        public SmsVerificationReceiver createVerificationReceiverForTesting() {
+-            return new SmsVerificationReceiver(mSmsProviderGms, this);
+-        }
+-
+-        private void onRegisterReceiver(BroadcastReceiver receiver, IntentFilter filter) {
+-            if (filter.hasAction(SmsCodeRetriever.SMS_CODE_RETRIEVED_ACTION)) {
+-                mVerificationReceiver = receiver;
+-            } else {
+-                mUserConsentReceiver = receiver;
+-            }
+-        }
+-
+-        // ---------------------------------------------------------------------
+-        // Context overrides:
+-
+-        @Override
+-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter,
+-                String permission, Handler handler) {
+-            onRegisterReceiver(receiver, filter);
+-            return super.registerReceiver(receiver, filter, permission, handler);
+-        }
+-
+-        @Override
+-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter) {
+-            throw new RuntimeException(); // Not implemented.
+-        }
+-
+-        @Override
+-        @RequiresApi(Build.VERSION_CODES.O)
+-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter,
+-                String permission, Handler handler, int flags) {
+-            onRegisterReceiver(receiver, filter);
+-            return super.registerReceiver(receiver, filter, permission, handler, flags);
+-        }
+-
+-        @Override
+-        @RequiresApi(Build.VERSION_CODES.O)
+-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter, int flags) {
+-            throw new RuntimeException(); // Not implemented.
+-        }
+-
+-        @Override
+-        public void unregisterReceiver(BroadcastReceiver receiver) {
+-            if (receiver == mVerificationReceiver) {
+-                mVerificationReceiver = null;
+-            } else {
+-                mUserConsentReceiver = null;
+-            }
+-
+-            super.unregisterReceiver(receiver);
+-        }
+-    }
+ }
+--- a/services/device/geolocation/BUILD.gn
++++ b/services/device/geolocation/BUILD.gn
+@@ -163,21 +163,15 @@
+       "android/java/src/org/chromium/device/geolocation/LocationProviderAdapter.java",
+       "android/java/src/org/chromium/device/geolocation/LocationProviderAndroid.java",
+       "android/java/src/org/chromium/device/geolocation/LocationProviderFactory.java",
+-      "android/java/src/org/chromium/device/geolocation/LocationProviderGmsCore.java",
+     ]
+ 
+     deps = [
+       ":geolocation_jni_headers",
+-      "$google_play_services_package:google_play_services_base_java",
+-      "$google_play_services_package:google_play_services_basement_java",
+-      "$google_play_services_package:google_play_services_location_java",
+-      "$google_play_services_package:google_play_services_tasks_java",
+       "//base:base_java",
+       "//base:jni_java",
+       "//build/android:build_java",
+       "//components/location/android:location_java",
+       "//services/device/public/java:geolocation_java",
+-      "//third_party/android_deps:chromium_play_services_availability_java",
+       "//third_party/androidx:androidx_annotation_annotation_java",
+     ]
+   }
+--- a/services/device/geolocation/android/java/src/org/chromium/device/geolocation/LocationProviderFactory.java
++++ b/services/device/geolocation/android/java/src/org/chromium/device/geolocation/LocationProviderFactory.java
+@@ -6,7 +6,6 @@
+ 
+ import androidx.annotation.VisibleForTesting;
+ 
+-import org.chromium.base.ContextUtils;
+ import org.chromium.base.annotations.CalledByNative;
+ import org.chromium.base.annotations.JNINamespace;
+ 
+@@ -16,7 +15,6 @@
+ @JNINamespace("device")
+ public class LocationProviderFactory {
+     private static LocationProvider sProviderImpl;
+-    private static boolean sUseGmsCoreLocationProvider;
+ 
+     private LocationProviderFactory() {}
+ 
+@@ -25,21 +23,14 @@
+         sProviderImpl = provider;
+     }
+ 
++    // Embrith: Google Play services are not used. The native code still calls this, so it stays as a no-op.
+     @CalledByNative
+-    public static void useGmsCoreLocationProvider() {
+-        sUseGmsCoreLocationProvider = true;
+-    }
++    public static void useGmsCoreLocationProvider() {}
+ 
+     public static LocationProvider create() {
+         if (sProviderImpl != null) return sProviderImpl;
+ 
+-        if (sUseGmsCoreLocationProvider
+-                && LocationProviderGmsCore.isGooglePlayServicesAvailable(
+-                           ContextUtils.getApplicationContext())) {
+-            sProviderImpl = new LocationProviderGmsCore(ContextUtils.getApplicationContext());
+-        } else {
+-            sProviderImpl = new LocationProviderAndroid();
+-        }
++        sProviderImpl = new LocationProviderAndroid();
+         return sProviderImpl;
+     }
+ }
+--- a/services/shape_detection/BUILD.gn
++++ b/services/shape_detection/BUILD.gn
+@@ -111,21 +111,13 @@
+ 
+   android_library("shape_detection_java") {
+     sources = [
+-      "android/java/src/org/chromium/shape_detection/BarcodeDetectionImpl.java",
+-      "android/java/src/org/chromium/shape_detection/BarcodeDetectionProviderImpl.java",
+       "android/java/src/org/chromium/shape_detection/BitmapUtils.java",
+       "android/java/src/org/chromium/shape_detection/FaceDetectionImpl.java",
+-      "android/java/src/org/chromium/shape_detection/FaceDetectionImplGmsCore.java",
+       "android/java/src/org/chromium/shape_detection/FaceDetectionProviderImpl.java",
+       "android/java/src/org/chromium/shape_detection/InterfaceRegistrar.java",
+-      "android/java/src/org/chromium/shape_detection/TextDetectionImpl.java",
+     ]
+ 
+     deps = [
+-      "$google_play_services_package:google_play_services_base_java",
+-      "$google_play_services_package:google_play_services_basement_java",
+-      "$google_play_services_package:google_play_services_vision_common_java",
+-      "$google_play_services_package:google_play_services_vision_java",
+       "//base:base_java",
+       "//base:jni_java",
+       "//mojo/public/java:base_java",
+@@ -135,7 +127,6 @@
+       "//mojo/public/mojom/base:base_java",
+       "//services/shape_detection/public/mojom:mojom_java",
+       "//skia/public/mojom:mojom_java",
+-      "//third_party/android_deps:chromium_play_services_availability_java",
+       "//ui/gfx/geometry/mojom:mojom_java",
+     ]
+   }
+--- a/services/shape_detection/android/java/src/org/chromium/shape_detection/BitmapUtils.java
++++ b/services/shape_detection/android/java/src/org/chromium/shape_detection/BitmapUtils.java
+@@ -6,14 +6,12 @@
+ 
+ import android.graphics.Bitmap;
+ 
+-import com.google.android.gms.vision.Frame;
+-
+ import org.chromium.mojo_base.BigBufferUtil;
+ 
+ import java.nio.ByteBuffer;
+ 
+ /**
+- * Utility class to convert a Bitmap to a GMS core YUV Frame.
++ * Utility class to convert a mojom bitmap to an Android Bitmap.
+  */
+ public class BitmapUtils {
+     public static Bitmap convertToBitmap(org.chromium.skia.mojom.BitmapN32 bitmapData) {
+@@ -43,14 +41,4 @@
+             return bitmap;
+         }
+     }
+-
+-    public static Frame convertToFrame(org.chromium.skia.mojom.BitmapN32 bitmapData) {
+-        Bitmap bitmap = convertToBitmap(bitmapData);
+-        if (bitmap == null) {
+-            return null;
+-        }
+-
+-        // This constructor implies a pixel format conversion to YUV.
+-        return new Frame.Builder().setBitmap(bitmap).build();
+-    }
+ }
+--- a/services/shape_detection/android/java/src/org/chromium/shape_detection/FaceDetectionProviderImpl.java
++++ b/services/shape_detection/android/java/src/org/chromium/shape_detection/FaceDetectionProviderImpl.java
+@@ -4,8 +4,6 @@
+ 
+ package org.chromium.shape_detection;
+ 
+-import org.chromium.base.ContextUtils;
+-import org.chromium.gms.ChromiumPlayServicesAvailability;
+ import org.chromium.mojo.bindings.InterfaceRequest;
+ import org.chromium.mojo.system.MojoException;
+ import org.chromium.shape_detection.mojom.FaceDetection;
+@@ -21,15 +19,7 @@
+     @Override
+     public void createFaceDetection(
+             InterfaceRequest<FaceDetection> request, FaceDetectorOptions options) {
+-        final boolean isGmsCoreSupported =
+-                ChromiumPlayServicesAvailability.isGooglePlayServicesAvailable(
+-                        ContextUtils.getApplicationContext());
+-
+-        if (isGmsCoreSupported) {
+-            FaceDetection.MANAGER.bind(new FaceDetectionImplGmsCore(options), request);
+-        } else {
+-            FaceDetection.MANAGER.bind(new FaceDetectionImpl(options), request);
+-        }
++        FaceDetection.MANAGER.bind(new FaceDetectionImpl(options), request);
+     }
+ 
+     @Override
+--- a/services/shape_detection/android/java/src/org/chromium/shape_detection/InterfaceRegistrar.java
++++ b/services/shape_detection/android/java/src/org/chromium/shape_detection/InterfaceRegistrar.java
+@@ -8,9 +8,7 @@
+ import org.chromium.base.annotations.JNINamespace;
+ import org.chromium.mojo.system.MessagePipeHandle;
+ import org.chromium.mojo.system.impl.CoreImpl;
+-import org.chromium.shape_detection.mojom.BarcodeDetectionProvider;
+ import org.chromium.shape_detection.mojom.FaceDetectionProvider;
+-import org.chromium.shape_detection.mojom.TextDetection;
+ 
+ @JNINamespace("shape_detection")
+ class InterfaceRegistrar {
+@@ -20,16 +18,9 @@
+ 
+     @CalledByNative
+     static void bindBarcodeDetectionProvider(long nativeHandle) {
+-        // Immediately wrap |nativeHandle| as it cannot be allowed to leak.
+-        MessagePipeHandle handle = messagePipeHandleFromNative(nativeHandle);
+-
+-        BarcodeDetectionProvider impl = BarcodeDetectionProviderImpl.create();
+-        if (impl == null) {
+-            handle.close();
+-            return;
+-        }
+-
+-        BarcodeDetectionProvider.MANAGER.bind(impl, handle);
++        // Embrith: barcode detection needs Google Play services, so it is not available.
++        // Wrap |nativeHandle| right away as it cannot be allowed to leak, then close it.
++        messagePipeHandleFromNative(nativeHandle).close();
+     }
+ 
+     @CalledByNative
+@@ -40,15 +31,7 @@
+ 
+     @CalledByNative
+     static void bindTextDetection(long nativeHandle) {
+-        // Immediately wrap |nativeHandle| as it cannot be allowed to leak.
+-        MessagePipeHandle handle = messagePipeHandleFromNative(nativeHandle);
+-
+-        TextDetection impl = TextDetectionImpl.create();
+-        if (impl == null) {
+-            handle.close();
+-            return;
+-        }
+-
+-        TextDetection.MANAGER.bind(impl, handle);
++        // Embrith: text detection needs Google Play services, so it is not available.
++        messagePipeHandleFromNative(nativeHandle).close();
+     }
+ }

@@ -1,0 +1,99 @@
+# ---- 编译产物 / 生成物（都能重新生成，不进仓库）----
+out/
+pkg/
+dist/
+host/bin/
+host/tools/kfake
+host/tools/lib/liblipc.so*
+aosp/device/kindle/common/webview/*.apk
+aosp/device/kindle/common/webview/*.notice
+aosp/device/kindle/common/swiftshader/lib/*.so
+host/embrith.raw
+host/check.txt
+*.pgm
+*.tar
+*.zip
+
+# ---- 开发记录 / 个人工具 （不入库）----
+tools/
+tests/
+docs/
+
+# ---- 大文件 / source源码 不入库 (可以网页下载) ----
+aosp/sources/android-ndk-r15c/
+aosp/sources/swiftshader-2018/
+
+# ---- 运行日志、诊断、Android 用户数据（只在 Kindle / WSL 上有）----
+logs/
+diag.txt
+aosp-changes/
+host/data/
+host/data.old/
+
+# ---- 补丁工具留下的备份 ----
+*.orig
+*.orig_kdroid
+*.rej
+
+# ---- Windows（复制文件时产生的标记，名字带冒号，会让 AOSP 的 make 报错）----
+*:Zone.Identifier
+Thumbs.db
+desktop.ini
+
+# ---- macOS ----
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# ---- Python ----
+__pycache__/
+*.pyc
+
+# ---- 编辑器 ----
+*.swp
+.vscode/
+.idea/
+
+
+# Gradle files
+.gradle/
+build/
+.kotlin/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log/OS Files
+*.log
+
+# Android Studio generated files and folders
+captures/
+.externalNativeBuild/
+.cxx/
+*.aab
+*.apk
+output-metadata.json
+
+# IntelliJ
+*.iml
+.idea/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Android Profiling
+*.hprof
+
+# 运行时生成的日志，不入库
+host/logs/
+
+# 开发时使用的diff文件, 不入库
+*.diff

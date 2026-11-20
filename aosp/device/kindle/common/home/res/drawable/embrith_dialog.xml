@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹出框背景: 与页面相同的纯白不透明底, 黑色描边, 圆角同 Ui.outline; 外圈 inset 让框不贴屏幕边 -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="24dp" android:insetRight="24dp" android:insetTop="24dp" android:insetBottom="24dp">
+    <shape android:shape="rectangle">
+        <solid android:color="#FFFFFFFF" />
+        <stroke android:width="1.5dp" android:color="#FF000000" />
+        <corners android:radius="@dimen/embrith_radius" />
+    </shape>
+</inset>

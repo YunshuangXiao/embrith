@@ -1,0 +1,24 @@
+# 默认让 git 自己判断文本文件
+* text=auto
+
+# 这些文件会在 Kindle（Linux）上直接运行或被 AOSP 编译：必须是 LF，否则 sh 会报错
+*.sh   text eol=lf
+*.c    text eol=lf
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.java text eol=lf
+*.xml  text eol=lf
+*.mk   text eol=lf
+*.rc   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.conf text eol=lf
+VERSION text eol=lf
+Containerfile text eol=lf
+
+# 二进制：不要做换行转换，也不要做文本 diff
+*.raw binary
+*.pgm binary
+*.png binary
+
+gh-pages/ export-ignore

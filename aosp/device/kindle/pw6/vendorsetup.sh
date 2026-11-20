@@ -1,0 +1,1 @@
+add_lunch_combo kindle_pw6-userdebug

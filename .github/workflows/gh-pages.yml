@@ -1,0 +1,116 @@
+# ============================================================
+# GitHub Actions Workflow: Deploy documentation
+#
+# This workflow builds the project documentation using
+# Jupyter Book and deploys the generated HTML pages to
+# GitHub Pages.
+#
+# Trigger:
+#   - Runs automatically when files under gh-pages/** are pushed
+#     to the main branch.
+#
+# Workflow steps:
+#   1. Checkout repository source code.
+#   2. Set up Python environment.
+#   3. Install documentation dependencies.
+#   4. Synchronize required static files.
+#   5. Build documentation with Jupyter Book.
+#   6. Upload generated HTML as a GitHub Pages artifact.
+#   7. Deploy the artifact to GitHub Pages.
+#
+# The deployed documentation will be available at:
+#   https://github.com/YunshuangXiao/embrith
+#
+# ============================================================
+
+name: deploy gh pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gh-pages/**"
+      - "README.md"
+      - "README_EN.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: embrith-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check gh-pages changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+
+          if [ "$COMMIT_COUNT" -le 1 ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E "^gh-pages/|^README\.md$" || true)
+
+            if [ -n "$CHANGED" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Skip if no changes
+        if: steps.changes.outputs.changed == 'false'
+        run: |
+          echo "No changes in gh-pages/, skipping deployment."
+          exit 0
+
+      - name: Setup Python
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          pip install --upgrade pip
+          pip install -r gh-pages/requirements.txt
+
+      - name: Build gh-pages
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          jupyter-book build gh-pages
+
+      # - name: Add Google Verification HTML
+      #   if: steps.changes.outputs.changed == 'true'
+      #   run: |
+      #     echo "google-site-verification: google8dc341396cd40e0e.html" > gh-pages/_build/html/google8dc341396cd40e0e.html
+
+      - name: Upload artifact
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: gh-pages/_build/html
+
+      - name: Deploy to GitHub Pages
+        if: steps.changes.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
