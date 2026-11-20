@@ -190,7 +190,11 @@ public final class Ui {
         public android.app.AlertDialog create() {
             final android.app.AlertDialog d = super.create();
             d.setOnShowListener(new android.content.DialogInterface.OnShowListener() {
-                @Override public void onShow(android.content.DialogInterface di) { sideBySide(d); }
+                @Override public void onShow(android.content.DialogInterface di) {
+                    sideBySide(d);
+                    View m = d.findViewById(android.R.id.message);
+                    if (m instanceof TextView) ((TextView) m).setLineSpacing(dp(ctx, 4), 1f);   // some air between the lines of the message
+                }
             });
             return d;
         }
@@ -387,6 +391,13 @@ public final class Ui {
         return t instanceof Pager ? (Pager) t : null;
     }
 
+    /** A round floating button like the page buttons; a long press does ll when it is not null. */
+    public static View floatButton(Activity a, int icon, View.OnClickListener l, View.OnLongClickListener ll) {
+        View v = Pager.round(a, icon, l);
+        if (ll != null) v.setOnLongClickListener(ll);
+        return v;
+    }
+
     /** Page up above page down, round light background with a high transparency, on top of the content. */
     public static final class Pager extends LinearLayout {
         private final ScrollView sv;
@@ -398,11 +409,15 @@ public final class Ui {
             this.sv = sv;
             this.body = body;
             setOrientation(VERTICAL);
-            addView(round(a, Icons.UP, new View.OnClickListener() {
+            addView(floatButton(a, Icons.UP, new View.OnClickListener() {
                 @Override public void onClick(View v) { sv.scrollBy(0, -(sv.getHeight() - dp(a, 40))); }
+            }, new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View v) { sv.scrollTo(0, 0); return true; }   // to the top
             }));
-            View down = round(a, Icons.DOWN, new View.OnClickListener() {
+            View down = floatButton(a, Icons.DOWN, new View.OnClickListener() {
                 @Override public void onClick(View v) { sv.scrollBy(0, sv.getHeight() - dp(a, 40)); }
+            }, new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View v) { sv.scrollTo(0, Math.max(0, Pager.this.body.getHeight() - sv.getHeight())); return true; }   // to the bottom
             });
             LayoutParams dlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             dlp.topMargin = dp(a, 10);
@@ -591,7 +606,13 @@ public final class Ui {
             if (s == null || s.length() == 0) continue;
             int tab = s.indexOf('\t');
             String text = t(a, tab >= 0 ? s.substring(tab + 1) : s);
-            if (full.length() > 0) full.append("\n\n");
+            if (full.length() > 0) {   // paragraph gap: an empty line at a small text size, less than a full blank line
+                full.append("\n");
+                int g0 = full.length();
+                full.append(" ");
+                full.setSpan(new android.text.style.AbsoluteSizeSpan(8, true), g0, full.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                full.append("\n");
+            }
             if (tab > 0) {
                 int from = full.length();
                 full.append(t(a, s.substring(0, tab)));
@@ -890,7 +911,7 @@ public final class Ui {
 
         @Override
         protected void onDraw(Canvas c) {
-            float s = dp(getContext(), 1.5f);
+            float s = dp(getContext(), 1f);
             float w = getWidth(), h = getHeight();
             r.set(s / 2, s / 2, w - s / 2, h - s / 2);
             float rad = r.height() / 2;
@@ -905,7 +926,7 @@ public final class Ui {
                 c.drawCircle(cx, cy, kr, paint);
             } else {
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(Color.BLACK);
+                paint.setColor(LINE);
                 c.drawRoundRect(r, rad, rad, paint);
                 c.drawCircle(cx, cy, kr, paint);
             }
@@ -926,18 +947,19 @@ public final class Ui {
             box = new View(c) {
                 private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
                 @Override protected void onDraw(Canvas cv) {
-                    float sw = dp(getContext(), 1.5f), w = getWidth(), h = getHeight();
-                    p.setColor(isEnabled() ? Color.BLACK : Color.GRAY);
+                    float sw = dp(getContext(), 1f), w = getWidth(), h = getHeight();
+                    p.setColor(isEnabled() ? LINE : Color.GRAY);
                     p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(sw);
                     p.setStrokeCap(Paint.Cap.ROUND); p.setStrokeJoin(Paint.Join.ROUND);
                     cv.drawRoundRect(new RectF(sw, sw, w - sw, h - sw), dp(getContext(), 3), dp(getContext(), 3), p);
+                    p.setColor(isEnabled() ? Color.BLACK : Color.GRAY);   // the mark inside stays black
                     if (on && index > 0) {
                         p.setStyle(Paint.Style.FILL);
                         p.setTextSize(h * 0.62f);
                         p.setTextAlign(Paint.Align.CENTER);
                         cv.drawText(String.valueOf(index), w / 2, h / 2 - (p.ascent() + p.descent()) / 2, p);
                     } else if (on) {
-                        p.setStrokeWidth(sw * 1.6f);
+                        p.setStrokeWidth(dp(getContext(), 2.4f));
                         android.graphics.Path ck = new android.graphics.Path();
                         ck.moveTo(w * 0.24f, h * 0.52f); ck.lineTo(w * 0.43f, h * 0.70f); ck.lineTo(w * 0.77f, h * 0.30f);
                         cv.drawPath(ck, p);
@@ -1012,6 +1034,7 @@ public final class Ui {
         TextView t = text(c, msg, 16, false);
         t.setBackgroundResource(R.drawable.embrith_toast);
         t.setPadding(dp(c, 20), dp(c, 12), dp(c, 20), dp(c, 12));
+        t.setLineSpacing(dp(c, 4), 1f);
         android.widget.Toast to = new android.widget.Toast(c.getApplicationContext());
         to.setView(t);
         to.setDuration(longer ? android.widget.Toast.LENGTH_LONG : android.widget.Toast.LENGTH_SHORT);

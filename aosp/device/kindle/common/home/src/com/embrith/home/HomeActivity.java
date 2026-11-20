@@ -339,7 +339,7 @@ public class HomeActivity extends Activity {
             cell.setPadding(Ui.dp(HomeActivity.this, 4), Ui.dp(HomeActivity.this, 4), Ui.dp(HomeActivity.this, 4), Ui.dp(HomeActivity.this, 4));
 
             ImageView icon = new ImageView(HomeActivity.this);
-            icon.setImageDrawable(ri.loadIcon(pm));
+            icon.setImageBitmap(Img.blackWhite(ri.loadIcon(pm), iconPx));
             cell.addView(icon, new LinearLayout.LayoutParams(iconPx, iconPx));
 
             TextView label = Ui.text(HomeActivity.this, String.valueOf(ri.loadLabel(pm)), labelSp, false);

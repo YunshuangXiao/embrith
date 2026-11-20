@@ -76,7 +76,7 @@ final class LevelBox extends View {
     @Override
     protected void onDraw(Canvas c) {
         float w = getWidth(), h = getHeight();
-        float sw = Ui.dp(getContext(), 1.5f);
+        float sw = Ui.dp(getContext(), 1f);   // the same thin line as every frame
         float r = Ui.dp(getContext(), radiusDp);
         rect.set(sw / 2f, sw / 2f, w - sw / 2f, h - sw / 2f);
         paint.setStyle(Paint.Style.FILL);

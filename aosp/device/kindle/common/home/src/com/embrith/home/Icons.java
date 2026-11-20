@@ -16,14 +16,15 @@ import android.graphics.drawable.Drawable;
  */
 public final class Icons {
     public static final int NONE = 0, MORE = 1, WIFI = 2, BT = 3, REFRESH = 4, SETTINGS = 5, LOCK = 6, INVERT = 7, HOME = 8, SUN = 9, EXIT = 10,
-            PLUS = 11, CHEVRON_LEFT = 12, CHEVRON_DOWN = 13, BATTERY = 14, LIST = 15, GRID = 16, OVERVIEW = 17, CHECKIN = 18, STATS = 19, LIBRARY = 20, READING = 21, MONITOR = 22, PALETTE = 23, UP = 24, DOWN = 25, RIGHT = 26, PLANE = 27, THERMOMETER = 28, MINUS = 29, BROOM = 30;
+            PLUS = 11, CHEVRON_LEFT = 12, CHEVRON_DOWN = 13, BATTERY = 14, LIST = 15, GRID = 16, OVERVIEW = 17, CHECKIN = 18, STATS = 19, LIBRARY = 20, READING = 21, MONITOR = 22, PALETTE = 23, UP = 24, DOWN = 25, RIGHT = 26, PLANE = 27, THERMOMETER = 28, MINUS = 29, BROOM = 30, SORT = 31, GROUP = 32;
 
     private static final int[] RES = { 0, R.drawable.ic_ellipsis, R.drawable.ic_wifi, R.drawable.ic_bluetooth, R.drawable.ic_refresh_cw,
             R.drawable.ic_settings, R.drawable.ic_lock, R.drawable.ic_contrast, R.drawable.ic_house, R.drawable.ic_sun, R.drawable.ic_power,
             R.drawable.ic_plus, R.drawable.ic_chevron_left, R.drawable.ic_chevron_up, R.drawable.ic_battery, R.drawable.ic_list,
             R.drawable.ic_layout_grid, R.drawable.ic_calendar_days, R.drawable.ic_calendar_check, R.drawable.ic_chart_column,
             R.drawable.ic_library, R.drawable.ic_book_open_text, R.drawable.ic_monitor, R.drawable.ic_palette,
-            R.drawable.ic_chevron_up, R.drawable.ic_chevron_down, R.drawable.ic_chevron_right, R.drawable.ic_plane, R.drawable.ic_thermometer, R.drawable.ic_minus, R.drawable.ic_broom_sparkles };
+            R.drawable.ic_chevron_up, R.drawable.ic_chevron_down, R.drawable.ic_chevron_right, R.drawable.ic_plane, R.drawable.ic_thermometer, R.drawable.ic_minus, R.drawable.ic_broom_sparkles,
+            R.drawable.ic_arrow_up_down, R.drawable.ic_layers };
 
     private Icons() { }
 

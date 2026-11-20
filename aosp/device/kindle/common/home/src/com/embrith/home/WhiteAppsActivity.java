@@ -29,10 +29,14 @@ public class WhiteAppsActivity extends Activity {
         if (!on) l.remove(pkg);
     }
 
+    /** hook for AnimAppsActivity: extra rows above the app list */
+    protected void extra(LinearLayout body) { }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         LinearLayout body = Ui.page(this, title(), null);
+        extra(body);
         LinearLayout list = Ui.addGroup(body);
         final List<String> chosen = load();
         PackageManager pm = getPackageManager();

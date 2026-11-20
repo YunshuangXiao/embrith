@@ -363,9 +363,9 @@ public class MenuActivity extends Activity {
         });
         Ui.add(g, pskRow);
 
-        g = section("网络服务", "SSH 远程登录\tSSH 端口 2222,用户 root,可以用密钥文件,密码或免密登录."
-            + "来源优先级: Embrith 内置 dropbear → KOReader → Kindle 自带; 自定义密码和免密只对内置 dropbear 有效. "
-            + "电脑提示主机密钥已变化(REMOTE HOST IDENTIFICATION HAS CHANGED)时,在电脑上执行 ssh-keygen -R \"[IP]:2222\".");
+        g = section("网络服务", "SSH 远程登录\tSSH 端口 2222,用户 root,可以用密钥文件,密码或免密登录.",
+            "来源优先级\tEmbrith 内置 dropbear → KOReader → Kindle 自带; 自定义密码和免密只对内置 dropbear 有效.",
+            "主机密钥已变化\t电脑提示主机密钥已变化(REMOTE HOST IDENTIFICATION HAS CHANGED)时,在电脑上执行 ssh-keygen -R \"[IP]:2222\".");
         sshRow = Ui.nav(this, "SSH 远程登录", "", open(SshActivity.class));
         Ui.add(g, sshRow);
         Ui.add(g, Ui.nav(this, "本机网络", ethState(), open(NetworkActivity.class)));   // 安卓容器的 eth0 (由 Kindle 的 Wi-Fi 转发), 页内有 DNS 设置
@@ -488,12 +488,12 @@ public class MenuActivity extends Activity {
     private static final String[] LROWS = { "0", "2", "3", "4", "5" };
     private static final String[] LROWS_TEXT = { "自动(封面 3:4, 可上下滑动)(默认)", "2 行", "3 行", "4 行", "5 行" };
     private static final String[] LROWS_SHORT = { "自动", "2 行", "3 行", "4 行", "5 行" };
-    private static final String[] LNOCOVER = { "ext", "title", "both", "blank" };
-    private static final String[] LNOCOVER_TEXT = { "格式名(如 EPUB)(默认)", "书名", "书名和格式名", "空白" };
+    private static final String[] LNOCOVER = { "ext", "title", "both", "ta", "blank" };
+    private static final String[] LNOCOVER_TEXT = { "格式名(如 EPUB)(默认)", "书名", "书名和格式名", "书名和作者", "空白" };
     private static final String[] LINFO = { "full", "fmt", "none" };
     private static final String[] LINFO_TEXT = { "格式和大小(默认)", "只显示格式", "不显示" };
-    private static final String[] LLABEL = { "file", "title", "title_author" };
-    private static final String[] LLABEL_TEXT = { "文件名(默认)", "书名", "书名 - 作者" };
+    private static final String[] LLABEL = { "file", "title", "title_author", "author_title" };
+    private static final String[] LLABEL_TEXT = { "文件名(默认)", "书名", "书名 - 作者", "作者 - 书名" };
     private static final String[] LGROUP = { "none", "author", "series", "format", "initial", "tag" };
     private static final String[] LGROUP_TEXT = { "不分组(默认)", "作者", "系列", "格式", "首字母", "标签" };
     private static final String[] LSORT = { "name", "natural", "pinyin", "date", "size", "type", "read" };
@@ -526,6 +526,9 @@ public class MenuActivity extends Activity {
         Ui.add(g, choiceRow("每行显示", LCOLS, LCOLS_TEXT, LCOLS_SHORT, "pref", "lib_cols", "3", "网格模式每行放几本书", Prefs.getStr(this, "lib_cols", "3")));
         Ui.add(g, choiceRow("每屏行数", LROWS, LROWS_TEXT, LROWS_SHORT, "pref", "lib_rows", "0", "网格模式一屏放几行; 自动时封面按 3:4, 超过一屏上下滑动", Prefs.getStr(this, "lib_rows", "0")));
         Ui.add(g, choiceRow("无封面时显示", LNOCOVER, LNOCOVER_TEXT, null, "pref", "lib_nocover", "ext", "网格模式里没有封面图片的书显示什么", Prefs.getStr(this, "lib_nocover", "ext")));
+        Ui.add(g, Ui.switchRow(this, "封面角标", !"off".equals(Prefs.getStr(this, "lib_badge", "on")), new Ui.OnToggle() {
+            @Override public void toggled(boolean on) { Prefs.putStr(MenuActivity.this, "lib_badge", on ? "on" : "off"); }
+        }));
         Ui.add(g, choiceRow("书的名称", LLABEL, LLABEL_TEXT, null, "pref", "lib_label", "file", "书在列表和网格里显示什么名称; 书名和作者来自书里的信息, 第一次显示时会在后台读取, 没有的显示文件名", Prefs.getStr(this, "lib_label", "file")));
         Ui.add(g, Ui.switchRow(this, "显示名称", !"0".equals(Prefs.getStr(this, "lib_name", "1")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Prefs.putStr(MenuActivity.this, "lib_name", on ? "1" : "0"); }
@@ -599,8 +602,8 @@ public class MenuActivity extends Activity {
             "反色显示\t反色显示把整个屏幕黑白对调,适合夜间.",
             "对比度\tgamma 1.0 ~ 2.5:数字越大,文字越黑,浅灰越白.",
             "抖动\t灰度画面用 8×8 有序抖动,图片更细腻,文字不受影响.",
-            "阅读背景过滤\t选中的应用(从桌面启动)里, 比阈值浅的背景一律显示为纯白, 文字和图片的深色部分不变, 让阅读页的灰色底色在墨水屏上更干净. "
-            + "过滤阈值: 灰度不小于这个数的颜色按纯白显示, 数字越小, 过滤的范围越大. "
+            "阅读背景过滤\t选中的应用(从桌面启动)里, 比阈值浅的背景一律显示为纯白, 文字和图片的深色部分不变, 让阅读页的灰色底色在墨水屏上更干净.",
+            "过滤阈值\t灰度不小于这个数的颜色按纯白显示, 数字越小, 过滤的范围越大. "
             + "注意: 阈值太小时, 浅灰色的图片细节和浅色文字会一起被过滤成白色而看不见; 阈值对所有选中的应用共用, 没选中的应用不受影响. "
             + "建议先用默认值, 底色仍发灰就调小, 图片发白就调大.");
         if ("1".equals(Ctl.text("color_supported"))) Ui.add(g, Ui.switchRow(this, "彩色显示（KC）", "1".equals(Ctl.get("COLOR", "0")), new Ui.OnToggle() {
@@ -779,12 +782,12 @@ public class MenuActivity extends Activity {
         Ui.add(g, Ui.nav(this, "生成日志", "", open(LogsActivity.class)));
 
         g = section("高级与兼容性",
-            "Embrith系统全局不使用网页内核, 新版(Chromium 119)和旧版(Chromium 52)网页内核主要在应用中使用(以下用新版, 旧版指代). 两版网页内核在JavaScript 引擎, Web API, 渲染管线, 安全模型, 网络协议和 WebView 系统集成方面都有非常大差距, 对内存的占用也大有不同. Embrith默认启用新版网页内核. 需注意: 切换回旧版网页内核可以适当减小内存压力, 但是可能会打不开应用内部分页面, 例如验证码. 注意: 切换后正在使用网页的应用会被系统结束, 未保存的内容会丢失, 请先保存; 重新打开该应用即生效, 不需要重启 Embrith; 如果重新打开后仍是旧内核, 请重启 Embrith. 内存紧张时, 新版内核会让后台应用更容易被系统结束.",
-            "注意: 编译很占内存, 大应用要几分钟到十几分钟, 期间请不要重启或退出 Embrith; 编译后的文件会多占一些存储空间; 中途被打断时, 再打开一次开关即可重新编译. 关闭后新装的应用不再编译, 已编译的不受影响.",
-            "把选中的 Kindle 文件夹以只读方式共享给安卓, 安卓里的路径是 /data/media/0/Kindle/ 加上它在 Kindle 上的位置. "
+            "新版 WebView\tEmbrith系统全局不使用网页内核, 新版(Chromium 119)和旧版(Chromium 52)网页内核主要在应用中使用(以下用新版, 旧版指代). 两版网页内核在JavaScript 引擎, Web API, 渲染管线, 安全模型, 网络协议和 WebView 系统集成方面都有非常大差距, 对内存的占用也大有不同. Embrith默认启用新版网页内核. 需注意: 切换回旧版网页内核可以适当减小内存压力, 但是可能会打不开应用内部分页面, 例如验证码. 注意: 切换后正在使用网页的应用会被系统结束, 未保存的内容会丢失, 请先保存; 重新打开该应用即生效, 不需要重启 Embrith; 如果重新打开后仍是旧内核, 请重启 Embrith. 内存紧张时, 新版内核会让后台应用更容易被系统结束.",
+            "优化: dex2oat\t注意: 编译很占内存, 大应用要几分钟到十几分钟, 期间请不要重启或退出 Embrith; 编译后的文件会多占一些存储空间; 中途被打断时, 再打开一次开关即可重新编译. 关闭后新装的应用不再编译, 已编译的不受影响.",
+            "共享文件夹\t把选中的 Kindle 文件夹以只读方式共享给安卓, 安卓里的路径是 /data/media/0/Kindle/ 加上它在 Kindle 上的位置. "
             + "改动在下次启动或重启 Embrith 后生效. 注意: 共享是只读的, 应用不能修改或删除里面的文件; 不能共享整个存储, 也不能共享 system 和 embrith 文件夹; "
             + "共享出去的文件夹, 有存储权限的安卓应用都能读取, 隐私文件请不要共享.",
-            DEV_NOTE);
+            "开发者模式\t" + DEV_NOTE);
         Ui.add(g, Ui.switchRow(this, "新版 WebView", !"0".equals(Ctl.get("WEBVIEW", "1")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { setWebview(on); }
         }));

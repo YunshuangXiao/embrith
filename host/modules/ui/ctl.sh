@@ -61,7 +61,8 @@ wifi_add() {
 }
 
 ctl_requests() {
-  [ -f "$K_CTL/status_req" ] && { rm -f "$K_CTL/status_req"; publish_status; STAT_LAST=${el:-1}; }   # the launcher shows status (panel, settings): fresh values, SSH included
+  if [ -f "$K_CTL/status_req" ]; then q=; read -r q < "$K_CTL/status_req" 2>/dev/null; rm -f "$K_CTL/status_req"   # "quick" = skip the SSH queries
+    case "$q" in quick) publish_status quick ;; *) publish_status ;; esac; STAT_LAST=${el:-1}; fi   # the launcher shows status (panel, settings): fresh values, SSH included
   [ -f "$K_CTL/wifi" ] && { rm -f "$K_CTL/wifi"; radio_wifi; STAT_LAST=0; QDUE="$((${el:-0} + 3)) $((${el:-0} + 10))"; }
   [ -f "$K_CTL/bt" ]   && { rm -f "$K_CTL/bt"; radio_bt; STAT_LAST=0; QDUE="$((${el:-0} + 3)) $((${el:-0} + 10))"; }
   if [ -f "$K_CTL/net_list" ]; then k=$(cat "$K_CTL/net_list" 2>/dev/null | tr -dc 'a-z'); rm -f "$K_CTL/net_list"

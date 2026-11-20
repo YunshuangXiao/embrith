@@ -13,12 +13,18 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 find "$HERE" -name '*:Zone.Identifier' -delete 2>/dev/null || true
 find "$SRC/device/kindle" -name '*:Zone.Identifier' -delete 2>/dev/null || true
 
+# leftovers in the repo: only a warning (they are skipped below, and never touched here)
+find "$HERE/device" \( -name '*.orig' -o -name '*.rej' -o -name '*.bak' -o -name '*~' -o -name '*.swp' \) -print 2>/dev/null | sed 's/^/warning, leftover in the repo: /' || true
+
 # ---- device tree: 整个替换, 编译树里不留其他测试版本的多余文件 (需要的标记文件如 use-core-mk 放进仓库的 device/kindle/common/) ----
 # common/ is shared by all devices, every other folder (pw6, ...) is one device. kc/ is not a device tree (notes and a test).
 mkdir -p "$SRC/device/kindle"
 for D in $(cd "$HERE/device/kindle" && ls -d */ | tr -d / | grep -v '^kc$'); do
   rm -rf "$SRC/device/kindle/$D.new"
   cp -r "$HERE/device/kindle/$D" "$SRC/device/kindle/$D.new"
+  # leftovers of patch / editors (.orig, .rej, .bak, ~, .swp) are not sources: aapt treats res/*.orig as a second resource and fails
+  # ("Resource entry ... is already defined"). They stay in the repo, only the copy that goes into the AOSP tree is cleaned.
+  find "$SRC/device/kindle/$D.new" \( -name '*.orig' -o -name '*.rej' -o -name '*.bak' -o -name '*~' -o -name '*.swp' \) -print -delete 2>/dev/null | sed 's/^/not copied (leftover): /' || true
   rm -rf "$SRC/device/kindle/$D"
   mv "$SRC/device/kindle/$D.new" "$SRC/device/kindle/$D"
   find "$SRC/device/kindle/$D" -name '*:*' -print -delete 2>/dev/null | sed 's/^/removed (colon in file name): /' || true

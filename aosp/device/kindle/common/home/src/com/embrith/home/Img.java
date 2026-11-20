@@ -14,6 +14,7 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -107,5 +108,25 @@ final class Img {
         } catch (OutOfMemoryError e) {
             return null;
         }
+    }
+
+    /**
+     * An app icon in pure black and white: transparent parts stay transparent. A pixel stays white only when all three channels are
+     * high (white and near white); any colour or dark pixel turns black, so a green part does not come out as mid gray on the panel.
+     */
+    static Bitmap blackWhite(Drawable d, int px) {
+        Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+        d.setBounds(0, 0, px, px);
+        d.draw(new Canvas(b));
+        int[] a = new int[px * px];
+        b.getPixels(a, 0, px, 0, 0, px, px);
+        for (int i = 0; i < a.length; i++) {
+            int p = a[i];
+            if (Color.alpha(p) < 128) { a[i] = Color.TRANSPARENT; continue; }
+            int low = Math.min(Color.red(p), Math.min(Color.green(p), Color.blue(p)));
+            a[i] = low >= 170 ? Color.WHITE : Color.BLACK;
+        }
+        b.setPixels(a, 0, px, 0, 0, px, px);
+        return b;
     }
 }

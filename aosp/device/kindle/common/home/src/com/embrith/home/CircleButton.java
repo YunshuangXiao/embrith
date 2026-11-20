@@ -61,7 +61,7 @@ final class CircleButton extends View {
     protected void onDraw(Canvas c) {
         boolean filled = on != isPressed();
         float w = getWidth(), h = getHeight();
-        float sw = Ui.dp(getContext(), 1.5f);
+        float sw = Ui.dp(getContext(), 1f);   // the same thin line as every frame
         float r = Math.min(w, h) / 2f - sw / 2f;
         RectF box = new RectF(w / 2f - r, h / 2f - r, w / 2f + r, h / 2f + r);
         float rad = Ui.dp(getContext(), 6);

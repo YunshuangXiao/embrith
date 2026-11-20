@@ -33,15 +33,18 @@ import java.util.zip.ZipFile;
  * What the library knows about a book: title, author, series (with the place in it) and tags. It is read from the file once (epub: the
  * package file; mobi: the header record; txt: an author line near the start) and kept in meta.tsv beside recent.tsv, one line per book:
  * path, size, time, title, author, series, index, tags. A line is used only while the size and the modified time of the file still match.
+ * What the reader edits by hand is kept apart in meta-user.tsv, by path only, and wins over what is read from the file.
  */
 final class Meta {
     private static final File CACHE = new File(LibStore.DIR, "meta.tsv");
+    private static final File USER = new File(LibStore.DIR, "meta-user.tsv");   // what the reader typed in: path, title, author, series, index, tags
     private static final String SEP = "\u001f";
     private static final int MAX_TAGS = 12;
     private static final Pattern AUTHOR = Pattern.compile(
         "(?m)^[ \\t\u3000]*(?:\u4f5c\u8005|\u8457|Author)[:\uff1a \\t\u3000]+(\\S[^\\n]{0,29})$");
     private static final Map<String, Meta> MAP = new HashMap<String, Meta>();
-    private static boolean loaded, dirty;
+    private static final Map<String, String[]> EDITS = new HashMap<String, String[]>();
+    private static boolean loaded, dirty, userDirty;
 
     String title = "", author = "", series = "";
     float index = -1;                       // place in the series, -1 when unknown
@@ -74,10 +77,56 @@ final class Meta {
             // an unreadable book keeps an empty entry, so it is not tried again
         }
         synchronized (Meta.class) {
+            String[] u = EDITS.get(f.getPath());
+            if (u != null) apply(m, u);
             MAP.put(f.getPath(), m);
             dirty = true;
         }
         return m;
+    }
+
+    private static void apply(Meta m, String[] u) {
+        m.title = u[0];
+        m.author = u[1];
+        m.series = u[2];
+        m.index = number(u[3]);
+        m.tags.clear();
+        if (u[4].length() > 0) for (String s : u[4].split(SEP)) m.tags.add(s);
+    }
+
+    /** True when the reader edited the properties of this book by hand. */
+    static synchronized boolean edited(File f) {
+        load();
+        return EDITS.containsKey(f.getPath());
+    }
+
+    /** Sets the properties of a book by hand (tags: separated by commas); they win over the file until reset. Not on the UI thread. */
+    static void edit(File f, String title, String author, String series, String index, String tags) {
+        Meta m = get(f);
+        Meta t = new Meta();
+        for (String s : tags.split("[,;\uff0c\uff1b\u3001]")) addTag(t, s);
+        StringBuilder tg = new StringBuilder();
+        for (String s : t.tags) tg.append(tg.length() > 0 ? SEP : "").append(s);
+        float ix = number(index);
+        String[] u = { clean(title), clean(author), clean(series), String.valueOf(ix), tg.toString() };
+        synchronized (Meta.class) {
+            EDITS.put(f.getPath(), u);
+            apply(m, u);
+            dirty = true;
+            userDirty = true;
+        }
+    }
+
+    /** Drops the hand-made properties of a book and reads it again. Not on the UI thread. */
+    static void reset(File f) {
+        synchronized (Meta.class) {
+            load();
+            EDITS.remove(f.getPath());
+            MAP.remove(f.getPath());
+            dirty = true;
+            userDirty = true;
+        }
+        get(f);
     }
 
     /** Writes the cache file when something was added. */
@@ -97,6 +146,18 @@ final class Meta {
                 w.close();
             }
             dirty = false;
+            if (userDirty) {
+                Writer uw = new OutputStreamWriter(new FileOutputStream(USER), "UTF-8");
+                try {
+                    for (Map.Entry<String, String[]> e : EDITS.entrySet()) {
+                        String[] u = e.getValue();
+                        uw.write(clean(e.getKey()) + "\t" + u[0] + "\t" + u[1] + "\t" + u[2] + "\t" + u[3] + "\t" + u[4] + "\n");
+                    }
+                } finally {
+                    uw.close();
+                }
+                userDirty = false;
+            }
         } catch (Exception e) {
             // the cache is only a convenience
         }
@@ -105,6 +166,7 @@ final class Meta {
     private static void load() {
         if (loaded) return;
         loaded = true;
+        loadEdits();
         if (!CACHE.isFile()) return;
         try {
             BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(CACHE), "UTF-8"));
@@ -128,6 +190,24 @@ final class Meta {
             }
         } catch (Exception e) {
             // a damaged cache is rebuilt as the books are read
+        }
+    }
+
+    private static void loadEdits() {
+        if (!USER.isFile()) return;
+        try {
+            BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(USER), "UTF-8"));
+            try {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    String[] p = line.split("\t", -1);
+                    if (p.length >= 6) EDITS.put(p[0], new String[] { p[1], p[2], p[3], p[4], p[5] });
+                }
+            } finally {
+                r.close();
+            }
+        } catch (Exception e) {
+            // a damaged file only loses the hand-made properties
         }
     }
 

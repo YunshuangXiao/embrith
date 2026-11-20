@@ -29,15 +29,19 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 
 import java.io.File;
@@ -75,7 +79,6 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     private String listInfo = "full";     // list: what follows a book (lib_info: full = format and size, fmt, none)
     private boolean showParent;           // "recent": also the folder a book is in (lib_parent)
     private boolean askOpen;              // ask before a book opens (lib_ask)
-    private String noCover = "ext";       // grid: what a book without a cover shows (lib_nocover: ext, title, both, blank)
     private boolean showName = true;      // grid: the file name under the cover (lib_name)
     private File dir;   // null = the library home
     private LinearLayout body;
@@ -85,9 +88,15 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     private ExecutorService pool;   // makes the covers one after the other
     private ExecutorService metaPool;   // reads the title, author, series and tags of the books one after the other
     private volatile int gen;       // counts the pages shown: a background read only refreshes the page it was started for
-    private String labelMode = "file";   // what a book is called (lib_label: file, title, title_author)
+    private String labelMode = "file";   // what a book is called (lib_label: file, title, title_author, author_title)
     private String group = "none";       // how the books of a folder are grouped (lib_group: none, author, series, format, initial, tag)
     private String groupKey;             // inside a virtual folder (one group): its name
+    private LinearLayout tools;          // the floating column: list or grid, sorting, grouping, then the page buttons
+    private Ui.Pager pager;              // the page buttons, kept in the column
+    private static final String[] G_IDS = { "none", "author", "series", "format", "initial", "tag" };
+    private static final String[] G_TEXT = { "不分组", "作者", "系列", "格式", "首字母", "标签" };
+    private static final String[] S_IDS = { "name", "natural", "pinyin", "date", "size", "type", "read" };
+    private static final String[] S_TEXT = { "名称", "自然数字", "拼音", "修改时间", "文件大小", "类型", "最近阅读" };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -151,6 +160,101 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         body = Ui.pageOf(this, bar, null, true, dock);
         body.setPadding(Ui.dp(this, PAD), 0, Ui.dp(this, PAD), Frames.edge(this) - Frames.half(this));   // frames: the page margin from the left, right and bottom edge
         where = Ui.caption(body, "");
+        buildTools();
+    }
+
+    /** One column at the bottom right: from the bottom up the page buttons (when there is something to scroll), grouping, sorting, list or grid. */
+    private void buildTools() {
+        tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        View root = (View) ((View) body.getParent()).getParent();
+        FrameLayout wrap = (FrameLayout) root.getParent();
+        pager = Ui.pager(root);
+        if (pager != null) wrap.removeView(pager);   // the page buttons move into the column: it grows and shrinks with them
+        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.RIGHT | Gravity.BOTTOM);
+        tp.rightMargin = Ui.dp(this, 16);
+        tp.bottomMargin = Ui.dp(this, 16 + Dock.HEIGHT);
+        wrap.addView(tools, tp);
+    }
+
+    /** The buttons for the page shown (only the library page has them; the grouping one only inside a folder), the page buttons last. */
+    private void refreshTools() {
+        tools.removeAllViews();
+        if (page.equals("shelf")) {
+            tools.addView(Ui.floatButton(this, grid ? Icons.LIST : Icons.GRID, new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    Prefs.putStr(LibraryActivity.this, "lib_view", grid ? "list" : "grid");
+                    show();
+                }
+            }, null));
+            tools.addView(Ui.floatButton(this, Icons.SORT, new View.OnClickListener() {
+                @Override public void onClick(View v) { cycle("lib_sort", "排序", S_IDS, S_TEXT, Prefs.getStr(LibraryActivity.this, "lib_sort", "name")); }
+            }, new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View v) { pop(v, "lib_sort", S_IDS, S_TEXT, Prefs.getStr(LibraryActivity.this, "lib_sort", "name")); return true; }
+            }), gapParams());
+            if (dir != null) {
+                tools.addView(Ui.floatButton(this, Icons.GROUP, new View.OnClickListener() {
+                    @Override public void onClick(View v) { cycle("lib_group", "分组", G_IDS, G_TEXT, group); }
+                }, new View.OnLongClickListener() {
+                    @Override public boolean onLongClick(View v) { pop(v, "lib_group", G_IDS, G_TEXT, group); return true; }
+                }), gapParams());
+            }
+        }
+        if (pager != null) tools.addView(pager, tools.getChildCount() > 0 ? gapParams() : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    private LinearLayout.LayoutParams gapParams() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = Ui.dp(this, 10);
+        return lp;
+    }
+
+    private void choose(String key, String name, String[] ids, String[] text, int i) {
+        Prefs.putStr(this, key, ids[i]);
+        if (key.equals("lib_group")) groupKey = null;
+        Ui.toast(this, T.t(this, name) + ": " + T.t(this, text[i]), false);
+        show();
+    }
+
+    /** A click: the next value of the setting. */
+    private void cycle(String key, String name, String[] ids, String[] text, String cur) {
+        int i = 0;
+        for (int k = 0; k < ids.length; k++) if (ids[k].equals(cur)) i = k;
+        choose(key, name, ids, text, (i + 1) % ids.length);
+    }
+
+    /** A long press: a list of all the values, next to the button. */
+    private void pop(View anchor, final String key, final String[] ids, final String[] text, String cur) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setStroke(Ui.dp(this, 1), Color.BLACK);
+        bg.setCornerRadius(Ui.radius(this));
+        box.setBackground(bg);
+        final PopupWindow pw = new PopupWindow(box, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        pw.setBackgroundDrawable(new ColorDrawable(Color.WHITE));
+        pw.setAnimationStyle(0);
+        for (int k = 0; k < ids.length; k++) {
+            final int i = k;
+            TextView t = Ui.text(this, (ids[k].equals(cur) ? "> " : "") + text[k], 17, ids[k].equals(cur));
+            t.setPadding(Ui.dp(this, 18), Ui.dp(this, 11), Ui.dp(this, 18), Ui.dp(this, 11));
+            t.setClickable(true);
+            t.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    pw.dismiss();
+                    choose(key, key.equals("lib_group") ? "分组" : "排序", ids, text, i);
+                }
+            });
+            box.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+        box.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int[] loc = new int[2];
+        anchor.getLocationOnScreen(loc);
+        int x = Math.max(Ui.dp(this, 8), loc[0] - box.getMeasuredWidth() - Ui.dp(this, 8));
+        int y = Math.max(Ui.dp(this, 8), loc[1] + anchor.getHeight() - box.getMeasuredHeight());
+        pw.showAtLocation(anchor, Gravity.NO_GRAVITY, x, y);
     }
 
     @Override
@@ -221,16 +325,17 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         }
     }
 
-    /** What an entry is called: on the library home the path of the chosen folder; a book by file name, title or title - author (lib_label), as far as it is read. */
+    /** What an entry is called: on the library home the path of the chosen folder; a book by file name, title, title - author or author - title (lib_label), as far as it is read. */
     private String label(File f) {
-        if (!recentMode && dir == null) return LibStore.rel(f);
-        String name = f.getName();
+        if (!recentMode && dir == null) return LibStore.tidy(LibStore.rel(f));
+        String name = LibStore.tidy(f.getName());
         if (f.isDirectory() || labelMode.equals("file")) return name;
         Meta m = Meta.peek(f);
         if (m == null) return name;
-        int i = name.lastIndexOf('.');
-        String t = m.title.length() > 0 ? m.title : i > 0 ? name.substring(0, i) : name;
-        return labelMode.equals("title_author") && m.author.length() > 0 ? t + " - " + m.author : t;
+        String t = m.title.length() > 0 ? m.title : LibStore.stem(name);
+        if (m.author.length() == 0) return t;
+        if (labelMode.equals("author_title")) return m.author + " - " + t;
+        return labelMode.equals("title_author") ? t + " - " + m.author : t;
     }
 
     /** A virtual folder: the books of a folder that share an author, series, format, first letter or tag. */
@@ -369,7 +474,6 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         grid = "grid".equals(Prefs.getStr(this, "lib_view", "list"));
         cols = num(Prefs.getStr(this, "lib_cols", "3"), 3);
         rows = num(Prefs.getStr(this, "lib_rows", "0"), 0);
-        noCover = Prefs.getStr(this, "lib_nocover", "ext");
         showName = !"0".equals(Prefs.getStr(this, "lib_name", "1"));
         listInfo = Prefs.getStr(this, "lib_info", "full");
         showParent = "1".equals(Prefs.getStr(this, "lib_parent", "0"));
@@ -433,14 +537,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         row.setOnLongClickListener(new View.OnLongClickListener() {
             @Override public boolean onLongClick(View v) { return details(b); }
         });
-        final FrameLayout box = new FrameLayout(this);
-        box.setBackground(Ui.outline(this));
-        final TextView kind = Ui.text(this, LibStore.ext(b.getName()).toUpperCase(), 20, true);
-        kind.setGravity(Gravity.CENTER);
-        box.addView(kind, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        final ImageView iv = new ImageView(this);
-        iv.setScaleType(ImageView.ScaleType.FIT_XY);
-        box.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final FrameLayout box = CoverView.make(this, b, cw, ch, 20, 15);
         row.addView(box, new LinearLayout.LayoutParams(cw, ch));
         final LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -469,19 +566,12 @@ public class LibraryActivity extends Activity implements Dock.Pages {
                 // the time left is the time read so far scaled to the part of the book that is still ahead (the reader's own pace)
                 final String left = pct >= 1 ? "~" + ReadTime.fmt((long) (ms * (100 - pct) / pct)) : "--";
                 final String s = T.t(LibraryActivity.this, "已读 ") + ReadTime.fmt(ms) + " / " + T.t(LibraryActivity.this, "剩余 ") + left;
-                Bitmap raw = Covers.load(b, cw, ch);
-                final Bitmap cover = raw == null ? null : fillRounded(raw, cw, ch, Ui.radius(LibraryActivity.this));
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
                         if (isFinishing() || g0 != gen) return;
                         title.setText(t);
                         stat.setText(s);
                         bar.set(pct < 0 ? 0 : (int) Math.round(pct));
-                        if (cover != null) {
-                            iv.setImageBitmap(cover);
-                            box.setForeground(Ui.outline(LibraryActivity.this));
-                            kind.setVisibility(View.GONE);
-                        }
                     }
                 });
             }
@@ -525,15 +615,84 @@ public class LibraryActivity extends Activity implements Dock.Pages {
                         if (isFinishing()) return;
                         Ui.Builder d = new Ui.Builder(LibraryActivity.this);
                         d.setTitle(f.getName()).setMessage(msg).setNegativeButton("关闭", null);
-                        if (!f.isDirectory()) d.setPositiveButton("打开", new DialogInterface.OnClickListener() {
-                            @Override public void onClick(DialogInterface dlg, int w) { open(f); }
-                        });
+                        if (!f.isDirectory()) {
+                            d.setPositiveButton("打开", new DialogInterface.OnClickListener() {
+                                @Override public void onClick(DialogInterface dlg, int w) { open(f); }
+                            });
+                            d.setNeutralButton("编辑属性", new DialogInterface.OnClickListener() {
+                                @Override public void onClick(DialogInterface dlg, int w) { editProps(f); }
+                            });
+                        }
                         d.show();
                     }
                 });
             }
         }).start();
         return true;
+    }
+
+    private EditText field(LinearLayout col, String label, String value, boolean number) {
+        col.addView(Ui.text(this, label, 14, false));
+        EditText e = new EditText(this);
+        e.setSingleLine(true);
+        e.setTextColor(Color.BLACK);
+        e.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16);
+        e.setText(value);
+        if (number) e.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        col.addView(e, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return e;
+    }
+
+    /** Edits the properties of a book by hand: title, author, series, place in the series and tags (long press, then Edit). */
+    private void editProps(final File f) {
+        Meta m = Meta.peek(f);
+        String t = m != null ? m.title : "", a = m != null ? m.author : "", s = m != null ? m.series : "";
+        String ix = m == null || m.index < 0 ? "" : m.index == (int) m.index ? String.valueOf((int) m.index) : String.valueOf(m.index);
+        StringBuilder tg = new StringBuilder();
+        if (m != null) for (String x : m.tags) tg.append(tg.length() > 0 ? ", " : "").append(x);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 8));
+        final EditText et = field(col, "书名", t, false);
+        final EditText ea = field(col, "作者", a, false);
+        final EditText es = field(col, "系列", s, false);
+        final EditText ei = field(col, "系列序号", ix, true);
+        final EditText eg = field(col, "标签 (逗号分隔)", tg.toString(), false);
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(col);
+        Ui.Builder d = new Ui.Builder(this);
+        d.setTitle("编辑属性").setView(sv).setNegativeButton("取消", null);
+        d.setPositiveButton("保存", new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface dlg, int w) {
+                final String v1 = et.getText().toString(), v2 = ea.getText().toString(), v3 = es.getText().toString();
+                final String v4 = ei.getText().toString(), v5 = eg.getText().toString();
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        Meta.edit(f, v1, v2, v3, v4, v5);
+                        Meta.flush();
+                        redraw();
+                    }
+                }).start();
+            }
+        });
+        if (Meta.edited(f)) d.setNeutralButton("还原", new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface dlg, int w) {
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        Meta.reset(f);
+                        Meta.flush();
+                        redraw();
+                    }
+                }).start();
+            }
+        });
+        d.show();
+    }
+
+    private void redraw() {
+        runOnUiThread(new Runnable() {
+            @Override public void run() { if (!isFinishing()) show(); }
+        });
     }
 
     private void line(StringBuilder sb, String label, String value) {
@@ -557,7 +716,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
             int n = Math.min(items.size(), cols * Screens.recentRows(this));
             items = new ArrayList<File>(items.subList(0, n));
         }
-        if (!labelMode.equals("file")) loadMeta(items);
+        if (CoverView.needsMeta(this)) loadMeta(items);
         if (multi) showGrid(items, false);
         else if (grid) showGrid(items, true);
         else showList(items);
@@ -592,7 +751,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         }
         boolean grouping = dir != null && !group.equals("none");
         boolean groupMeta = grouping && (group.equals("author") || group.equals("series") || group.equals("tag"));
-        if ((!labelMode.equals("file") || groupMeta) && loadMeta(items) && groupMeta) {
+        if ((CoverView.needsMeta(this) || groupMeta) && loadMeta(items) && groupMeta) {
             Ui.add(Frames.group(body, PAD), Ui.row(this, "正在读取书籍信息...", "", null));
             return;
         }
@@ -612,6 +771,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         boolean detail = isStats(page) && logBoard.title() != null;
         pagerRow(detail || (!isStats(page) && !page.equals("reading")));   // overview, check-in, statistics and reading are fixed pages: no scroll, no page buttons
         Dock.mark(dock, detail ? null : page);   // the page shown has the bold text
+        refreshTools();
     }
 
     /** The floating page buttons: allowed or not (the tab pages of the reading statistics fill the screen). */
@@ -676,19 +836,6 @@ public class LibraryActivity extends Activity implements Dock.Pages {
 
     private static int num(String s, int def) {
         try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
-    }
-
-    /** What a grid cell without a cover shows: the format, the title, both, or nothing (a folder always shows its name). */
-    private String coverText(File f) {
-        if (f.isDirectory()) return f.getName();
-        String name = f.getName();
-        int i = name.lastIndexOf('.');
-        if (i > 0) name = name.substring(0, i);
-        String ext = LibStore.ext(f.getName()).toUpperCase();
-        if (noCover.equals("title")) return name;
-        if (noCover.equals("both")) return name + "\n" + ext;
-        if (noCover.equals("blank")) return "";
-        return ext;
     }
 
     private String sizeOf(File f) {
@@ -765,34 +912,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         c.setOrientation(LinearLayout.VERTICAL);
         c.setGravity(Gravity.CENTER_HORIZONTAL);
         c.setClickable(true);
-        final FrameLayout box = new FrameLayout(this);
-        box.setBackground(Ui.outline(this));
-        final TextView kind = Ui.text(this, coverText(f), noCover.equals("ext") && !f.isDirectory() ? 20 : 15, true);
-        kind.setGravity(Gravity.CENTER);
-        kind.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
-        kind.setMaxLines(6);
-        kind.setEllipsize(TextUtils.TruncateAt.END);
-        box.addView(kind, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        if (!f.isDirectory()) {
-            final ImageView iv = new ImageView(this);
-            iv.setScaleType(ImageView.ScaleType.FIT_XY);   // the bitmap is already made at the size of the frame
-            box.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            pool.execute(new Runnable() {
-                @Override public void run() {
-                    Bitmap raw = Covers.load(f, cw, ch);
-                    if (raw == null) return;
-                    final Bitmap b = fillRounded(raw, cw, ch, Ui.radius(LibraryActivity.this));
-                    runOnUiThread(new Runnable() {
-                        @Override public void run() {
-                            if (isFinishing()) return;
-                            iv.setImageBitmap(b);
-                            box.setForeground(Ui.outline(LibraryActivity.this));   // the frame line over the cover
-                            kind.setVisibility(View.GONE);
-                        }
-                    });
-                }
-            });
-        }
+        final FrameLayout box = CoverView.make(this, f, cw, ch, 20, 15);
         c.addView(box, new LinearLayout.LayoutParams(cw, ch));
         if (showName) {
             TextView name = Ui.text(this, label(f), 14, false);

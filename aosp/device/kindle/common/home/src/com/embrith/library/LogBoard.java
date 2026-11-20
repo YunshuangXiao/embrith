@@ -392,29 +392,7 @@ final class LogBoard {
     }
 
     private View cover(final File f, final int cw, final int ch) {
-        final FrameLayout box = new FrameLayout(act);
-        box.setBackground(Ui.outline(act));
-        final TextView kind = text(LibStore.ext(f.getName()).toUpperCase(), 16, true);
-        kind.setGravity(Gravity.CENTER);
-        box.addView(kind, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        final ImageView iv = new ImageView(act);
-        iv.setScaleType(ImageView.ScaleType.FIT_XY);
-        box.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        act.coverPool().execute(new Runnable() {
-            @Override public void run() {
-                Bitmap raw = Covers.load(f, cw, ch);
-                if (raw == null) return;
-                final Bitmap b = LibraryActivity.fillRounded(raw, cw, ch, Ui.radius(act));
-                act.runOnUiThread(new Runnable() {
-                    @Override public void run() {
-                        if (act.isFinishing()) return;
-                        iv.setImageBitmap(b);
-                        box.setForeground(Ui.outline(act));
-                        kind.setVisibility(View.GONE);
-                    }
-                });
-            }
-        });
+        final FrameLayout box = CoverView.make(act, f, cw, ch, 16, 13);
         box.setClickable(true);
         box.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { act.open(f); }

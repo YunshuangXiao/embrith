@@ -35,7 +35,23 @@ public class StatusService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        SleepLog.end(this, System.currentTimeMillis());   // a sleep still open at start: the device was off meanwhile
+        long boot = System.currentTimeMillis();
+        SleepLog.end(this, boot);   // a sleep still open at start: the device was off meanwhile
+        // The host leaves the time Android was stopped at (stop.sh): the time until now is a pause, an app in front at that moment
+        // never got its "paused" event.
+        File stopped = new File(new File(Ctl.DIR).getParentFile(), "stopped");
+        try {
+            java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(stopped));
+            try {
+                long at = Long.parseLong(r.readLine().trim()) * 1000L;
+                if (at > 0 && at < boot) SleepLog.addClosed(this, at, boot);
+            } finally {
+                r.close();
+            }
+        } catch (Exception x) {
+            // no marker (power loss, first start) or damaged: nothing to add
+        }
+        stopped.delete();
         WhiteBg.start(getApplication());
         observer = new FileObserver(Ctl.DIR, FileObserver.CREATE | FileObserver.MOVED_TO | FileObserver.CLOSE_WRITE) {
             @Override

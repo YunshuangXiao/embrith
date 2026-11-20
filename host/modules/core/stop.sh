@@ -56,6 +56,8 @@ cmd_stop() {
   fi
   # "returning to Kindle" page first (kdispd draws it at once), then the real shutdown. Also used by the "exit embrith" button.
   date +%s > "$ST/stopping" 2>/dev/null
+  # the time Android ends, read by the launcher at the next start (screen time: pause from here on). Beside ctl/, not in it: ctl files are consumed
+  [ -d /var/tmp/kdisp ] && date +%s > /var/tmp/kdisp/stopped 2>/dev/null
   set_sync; app_count_refresh; set_flush   # KOReader SaveState: write the table at stop
   # the power-event process and the warmth timer belong to this session: a restart would otherwise keep the old ones
   # (two power watchers handle every powerd event twice)

@@ -54,6 +54,25 @@ final class LibStore {
         return i < 0 ? "" : name.substring(i + 1).toLowerCase();
     }
 
+    /** Kindle names a book "Title_ASIN_EBOK.kfx" (or "Title-ASIN.azw3"): the ASIN and the type code are cut off, the extension is kept. */
+    private static final java.util.regex.Pattern KINDLE_TAIL = java.util.regex.Pattern.compile(
+        "(?:[-_ ]+(?:B[0-9A-Z]{9}|[0-9]{9}[0-9X])(?:[-_](?:EBOK|PDOC|EBSP|PSNL|NWPR|MAGZ))?|[-_](?:EBOK|PDOC|EBSP|PSNL|NWPR|MAGZ))$");
+
+    static String tidy(String name) {
+        String e = ext(name);
+        if (!e.equals("kfx") && !e.equals("azw") && !e.equals("azw3")) return name;
+        String base = name.substring(0, name.length() - e.length() - 1);
+        String cut = KINDLE_TAIL.matcher(base).replaceFirst("");
+        return cut.length() == 0 || cut.endsWith("/") ? name : cut + name.substring(base.length());
+    }
+
+    /** tidy() without the extension. */
+    static String stem(String name) {
+        String n = tidy(name);
+        int i = n.lastIndexOf('.');
+        return i > 0 ? n.substring(0, i) : n;
+    }
+
     static boolean isBook(String name) {
         String e = ext(name);
         for (String x : EXT) if (x.equals(e)) return true;

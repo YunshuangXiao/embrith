@@ -64,6 +64,14 @@ public final class SleepLog {
         save(c, l, t);
     }
 
+    /** A period that is already over (the time between the end of Android and its next start). */
+    public static synchronized void addClosed(Context c, long a, long b) {
+        if (b <= a) return;
+        List<long[]> l = load(c);
+        l.add(new long[] { a, b });
+        save(c, l, b);
+    }
+
     /** The periods as {start, end}; a sleep that is still going on ends at "now". */
     public static synchronized long[][] periods(Context c, long now) {
         List<long[]> l = load(c);

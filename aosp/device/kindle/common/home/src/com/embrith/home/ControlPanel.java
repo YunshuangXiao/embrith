@@ -36,6 +36,7 @@ final class ControlPanel {
     private CircleButton qPlane, qWifi, qBt, qInvert;
     private BarView flBar, amberBar;
     private int lastFl = -1, lastAmber = -1;
+    private int autoTick;
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
@@ -44,6 +45,8 @@ final class ControlPanel {
             int fl = Ctl.statusInt(st, "FL", -1), am = Ctl.statusInt(st, "AMBER", -1);
             if (fl >= 0 && fl != lastFl) { lastFl = fl; if (flBar != null && !flBar.isDragging()) flBar.setLevel(fl); }
             if (am >= 0 && am != lastAmber) { lastAmber = am; if (amberBar != null && !amberBar.isDragging()) amberBar.setLevel(am); }
+            // auto brightness: powerd changes the level by itself and nothing tells the host, so ask for a fresh status every 3 s while the page is shown
+            if ("1".equals(st.get("FL_AUTO")) && ++autoTick % 3 == 0) Ctl.put("status_req", "quick");
             handler.postDelayed(this, 1000);
         }
     };
@@ -116,7 +119,7 @@ final class ControlPanel {
         t.setPadding(Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 12));
         android.graphics.drawable.GradientDrawable f = new android.graphics.drawable.GradientDrawable();
         f.setColor(android.graphics.Color.TRANSPARENT);
-        f.setStroke(Ui.dp(c, 1.5f), Ui.LINE);
+        f.setStroke(Ui.dp(c, 1f), Ui.LINE);
         f.setCornerRadius(Ui.radius(c));
         t.setBackground(f);
         qPlane = circle(Icons.PLANE, new View.OnClickListener() {

@@ -90,10 +90,19 @@ final class WhiteBg {
         }
     };
 
+    /** Policy for the pages of Embrith itself (Prefs "sys_anim"): "auto" = partial refresh while a wallpaper is a page background, "anim" = always the animation, "local" = never the animation. */
+    static boolean sysLocal(Context c) {
+        String m = Prefs.getStr(c, "sys_anim", "auto");
+        if ("local".equals(m)) return true;
+        if (!"auto".equals(m)) return false;
+        return "1".equals(Prefs.getStr(c, "wall_lib", "0")) && Prefs.wall(c, "home").length() > 0;
+    }
+
     private static void apply() {
         boolean front = app != null && top == null && launched != null;
         Ctl.put("white", front && chosen(app).contains(launched) ? "1" : "0");
-        Ctl.put("noanim", front && noAnim(app).contains(launched) ? "1" : "0");
+        boolean off = front ? noAnim(app).contains(launched) : app != null && top != null && sysLocal(app);
+        Ctl.put("noanim", off ? "1" : "0");
     }
 
     static void start(Application a) {

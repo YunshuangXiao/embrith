@@ -69,10 +69,11 @@ final class BarView extends View {
         float thick = Ui.dp(getContext(), 6);
         float left = pad, right = w - pad;
         float split = left + (right - left) * level / max;
-        paint.setColor(Color.BLACK);
         paint.setStyle(Paint.Style.FILL);
-        // the part that is not filled: a thin line; the filled part: a thicker bar (both with round ends)
+        // the part that is not filled: a thin line in the frame color; the filled part: a thicker black bar (both with round ends)
+        paint.setColor(Ui.LINE);
         c.drawRoundRect(new RectF(split, mid - thin / 2, right, mid + thin / 2), thin / 2, thin / 2, paint);
+        paint.setColor(Color.BLACK);
         if (level > 0) c.drawRoundRect(new RectF(left, mid - thick / 2, split, mid + thick / 2), thick / 2, thick / 2, paint);
         // the number above the end of the filled part (follows the finger while dragging)
         paint.setTextSize(Ui.dp(getContext(), 14));

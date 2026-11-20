@@ -39,6 +39,11 @@ final class ReadState {
         this.file = file;
     }
 
+    /** True when the book was opened before (the state file exists). */
+    static boolean opened(File book) {
+        return new File(DIR, Integer.toHexString(book.getPath().hashCode()) + ".txt").isFile();
+    }
+
     static ReadState load(File book) {
         ReadState s = new ReadState(new File(DIR, Integer.toHexString(book.getPath().hashCode()) + ".txt"));
         for (String line : LibStore.readLines(s.file)) {
