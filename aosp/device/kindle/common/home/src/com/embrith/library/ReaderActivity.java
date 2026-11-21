@@ -150,7 +150,7 @@ public class ReaderActivity extends Activity {
 
     private BookSource open(File f) throws Exception {
         String ext = LibStore.ext(f.getName());
-        if (ext.equals("txt")) return new TxtSource(f);
+        if (ext.equals("txt")) return new TxtSource(f, Prefs.getStr(this, "txt_regex", ""));
         if (ext.equals("epub")) return new EpubSource(f);
         if (ext.equals("kfx") || (ext.equals("azw") && KfxSource.sniff(f))) return new KfxSource(f);
         if (ext.equals("mobi") || ext.equals("azw") || ext.equals("azw3")) return new MobiSource(f);

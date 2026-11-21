@@ -243,9 +243,9 @@ static int travel_of(const struct slot* s) { int dx = s->x - s->x0, dy = s->y - 
 
 static void hold_check(long long now) {
     if (!in_session || fired) return;
-    if (maxf == 1 && nfing == 1 && maxtravel < 60 && now - t_start >= EXIT_MS) {      /* the way out: always available */
+    if (maxf == 1 && nfing == 1 && maxtravel < 60 && now - t_start >= EXIT_MS) {      /* the way out: always available (Android shows the power menu; if it does not answer the watchdog exits) */
         const struct slot* s = NULL; for (int i = 0; i < 16; i++) if (sl[i].on) s = &sl[i];
-        if (s && s->x0 < CORNER_PX && s->y0 < CORNER_PX) { fired = 1; printf("action: exit\n"); touch_file("exit"); return; }
+        if (s && s->x0 < CORNER_PX && s->y0 < CORNER_PX) { fired = 1; printf("action: power menu\n"); touch_file("power_menu"); return; }
     }
     if (!conf_int("GESTURES", 1)) return;
     if (maxf >= 2 && nfing == 2 && has2 && maxtravel < 60 && now - t2 >= HOLD_MS) {

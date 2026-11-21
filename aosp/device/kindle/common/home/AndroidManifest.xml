@@ -53,7 +53,7 @@
         <activity android:name=".PanelActivity" android:label="下拉面板" android:screenOrientation="portrait" android:theme="@style/PlainPanel"
             android:excludeFromRecents="true" />
         <activity android:name=".GestureActivity" android:label="手势" android:screenOrientation="portrait" />
-        <activity android:name=".WidgetOrderActivity" android:label="组件排序" android:screenOrientation="portrait" />
+        <activity android:name=".SlotOrderActivity" android:label="组件设置" android:screenOrientation="portrait" />
         <activity android:name="com.embrith.library.LibraryActivity" android:label="书库" android:screenOrientation="portrait" />
         <activity android:name="com.embrith.library.FolderPickActivity" android:label="选择文件夹" android:screenOrientation="portrait" />
         <activity android:name="com.embrith.library.ReaderActivity" android:label="阅读" android:screenOrientation="portrait"
@@ -75,6 +75,8 @@
         <activity android:name=".AmberScheduleActivity" android:label="色温时间设置" android:screenOrientation="portrait" />
         <activity android:name=".NetPickActivity" android:label="选择网络或设备" android:theme="@style/PlainDialog"
             android:screenOrientation="portrait" android:excludeFromRecents="true" />
+        <activity android:name=".PowerMenuActivity" android:label="重启与退出" android:screenOrientation="portrait" android:theme="@style/PlainPanel"
+            android:excludeFromRecents="true" android:launchMode="singleTop" />
         <activity android:name=".ChoiceActivity" android:label="选择" android:screenOrientation="portrait" />
         <activity android:name=".WallpaperActivity" android:label="壁纸与锁屏" android:screenOrientation="portrait" />
         <activity android:name=".SleepActivity" android:label="休眠" android:screenOrientation="portrait"

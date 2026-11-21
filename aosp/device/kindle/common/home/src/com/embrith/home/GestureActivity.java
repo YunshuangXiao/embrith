@@ -105,7 +105,7 @@ public class GestureActivity extends Activity {
         Ui.add(g, Ui.row(this, "单指从顶边右半向下滑", "下拉面板", null));
         Ui.add(g, Ui.row(this, "单指从底边左半向上滑", "回到桌面", null));
         Ui.add(g, Ui.row(this, "单指从底边右半向上滑", "返回", null));
-        Ui.add(g, Ui.row(this, "单指按住左上角 3 秒", "退出 Embrith", null));
+        Ui.add(g, Ui.row(this, "单指按住左上角 3 秒", "重启或退出菜单", null));
         Ui.add(g, Ui.row(this, "同时按左上角和右下角", "截图", null));
         Ui.add(g, Ui.row(this, "同时按左下角和右上角", "截图", null));
     }

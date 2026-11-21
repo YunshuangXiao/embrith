@@ -57,9 +57,9 @@ public class StatusService extends Service {
             @Override
             public void onEvent(int event, String path) {
                 if (path == null) return;
-                if ("status".equals(path)) { Ui.StatusRow.statusChanged(); return; }
+                if ("status".equals(path)) { StatusBus.changed(); return; }
                 if (!"statusbar".equals(path) && !"menu".equals(path) && !"sleeping".equals(path) && !"wake".equals(path)
-                        && !"usb".equals(path) && !"usb_off".equals(path)) return;
+                        && !"usb".equals(path) && !"usb_off".equals(path) && !"power_menu".equals(path)) return;
                 if (!new File(Ctl.DIR, path).delete()) return;      // CREATE and CLOSE_WRITE both arrive: only the first one finds the file
                 if ("sleeping".equals(path)) SleepLog.begin(StatusService.this, System.currentTimeMillis());   // for the screen time: the sleep is not time in front
                 else if ("wake".equals(path)) SleepLog.end(StatusService.this, System.currentTimeMillis());
@@ -90,6 +90,8 @@ public class StatusService extends Service {
             openActivity(UsbActivity.class);
         } else if ("usb_off".equals(what)) {
             UsbActivity.close();
+        } else if ("power_menu".equals(what)) {       // kgest: top left corner held; works over the USB page too
+            openActivity(PowerMenuActivity.class);
         } else if (UsbActivity.active && !"sleeping".equals(what) && !"wake".equals(what)) {
             return;                                   // the USB page is exclusive: no settings home
         } else if ("statusbar".equals(what)) {

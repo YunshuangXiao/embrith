@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Embrith contributors
  *
- * CircleButton: Round quick button with an icon inside, no text; filled black when on, drawn inverted while
- * pressed. */
+ * CircleButton: Round quick button with an icon inside, no text; filled black when on; the icon fades while pressed. */
 package com.embrith.home;
 
 import android.content.Context;
@@ -12,10 +11,10 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.View;
 
-/** A round quick button: black ring with an icon inside, no text. "on" = filled black with a white icon. Pressed = drawn inverted. */
+/** A round quick button: black ring with an icon inside, no text. "on" = filled black with a white icon. Pressed = the icon fades (a checker), the frame and the fill stay as they are. */
 final class CircleButton extends View {
     static final int SIZE_DP = 64;
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG), fadePaint = new Paint();
     private int icon;
     private boolean on;
     private boolean off;
@@ -59,7 +58,7 @@ final class CircleButton extends View {
 
     @Override
     protected void onDraw(Canvas c) {
-        boolean filled = on != isPressed();
+        boolean filled = on;
         float w = getWidth(), h = getHeight();
         float sw = Ui.dp(getContext(), 1f);   // the same thin line as every frame
         float r = Math.min(w, h) / 2f - sw / 2f;
@@ -76,6 +75,15 @@ final class CircleButton extends View {
         if (square) c.drawRoundRect(box, rad, rad, paint); else c.drawCircle(w / 2f, h / 2f, r, paint);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(filled ? Color.WHITE : Color.BLACK);
+        int sc = isPressed() ? c.saveLayer(0, 0, w, h, null, Canvas.ALL_SAVE_FLAG) : -1;
         Icons.draw(getContext(), c, icon, w / 2f, h / 2f, Ui.dp(getContext(), 30), paint, off);
+        if (sc >= 0) {   // pressed: only the icon is erased in a 50 percent checker, so the panel does not have to flip the whole frame
+            int[] xy = new int[2];
+            getLocationOnScreen(xy);
+            fadePaint.setShader(Ui.checker((xy[0] + xy[1]) & 1, true));
+            fadePaint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT));
+            c.drawRect(0, 0, w, h, fadePaint);
+            c.restoreToCount(sc);
+        }
     }
 }

@@ -35,11 +35,13 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 
 ### Launcher, Library and Reading
 
-- Minimalist launcher: app grid, widgets (daily / weekly screen time, image display, text display, app shortcuts), and a Kindle-style status bar.
+- Minimalist launcher: app grid, widgets (daily / weekly screen time, image display, text display, app shortcuts, quick buttons), and a Kindle-style status bar.
 - Bottom bar pages can be chosen and reordered: Stats / Check-in / Overview / Home / Reading / Library / Settings.
 - Library: only the folders you choose are shown; cover grid or list view, columns per row / rows per screen, book title shown when there is no cover, sorting (including reverse order and folders first) and grouping, clear recent history, clear cover cache.
 - Reading page: shows the book you are reading and recent books; tap a cover to continue reading.
+- Home and settings widgets are laid out in slots: several sizes (full screen, full-width strip, half-screen column, half-width and others), with the count of each size and their order adjustable; quick-button widgets are available.
 - Supported formats: txt, epub, mobi, azw, azw3, kfx (DRM-free only); comics in cbz and cbt (including epub / mobi / azw3 books made of image pages). cbr and cb7 files are listed in the library but cannot be opened yet; convert them to cbz first. PDF is not supported.
+- Chapters: epub books are split by their table of contents (including anchors inside one file), falling back to heading lines in the text when the table is too short; txt chapter headings are detected automatically (Chinese chapter words, chapter / part, numbered lines, layout), or set your own regular expression in Settings > Library.
 
 <p>
 <img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120119.png" width="31%">
@@ -77,9 +79,11 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 
 ### Touch and Gestures
 
-- Fixed gestures: swipe down from the right half of the top edge = pull-down panel; swipe up from the left half of the bottom edge = Home; swipe up from the right half of the bottom edge = Back; press and hold the top-left corner for 3 seconds = Exit Embrith; press two opposite corners at the same time = screenshot.
+- Fixed gestures: swipe down from the right half of the top edge = pull-down panel; swipe up from the left half of the bottom edge = Home; swipe up from the right half of the bottom edge = Back; press and hold the top-left corner for 3 seconds = restart / exit menu (restart Embrith, exit Embrith, restart Kindle; Embrith still exits if Android does not answer); press two opposite corners at the same time = screenshot.
 - Configurable gestures: one-finger and two-finger taps and swipes. Actions include refresh screen (clear ghosting), invert colors, Back, Home, frontlight on/off, adjust frontlight brightness, adjust color temperature, Wi-Fi toggle, open status bar, open settings, sleep, screenshot, previous page, next page, frontlight to maximum, frontlight to minimum, warmest, coolest, and switch app (recent tasks).
 - One-tap restore of the default gestures.
+- Quick buttons (pull-down panel and settings home widgets): choose actions such as frontlight (set / up / down / toggle), warmth, Wi-Fi, Bluetooth, airplane mode, invert colors, refresh, screenshot, sleep, restart and eject USB; the floating page buttons can be dragged to a new place.
+- Soft keyboard: an edit row (select, select all, copy, cut, paste).
 
 <p>
 <img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115428.png" width="31%">
@@ -111,7 +115,7 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 
 ### Power and System
 
-- Sleep now, sleep timer, restart Embrith, restart and update, exit back to Kindle.
+- Sleep now, sleep timer, restart Embrith, restart Kindle, restart and update, exit back to Kindle.
 - Device name, time zone, 24-hour clock, language (Chinese / English), app management, memory view and freeing background apps.
 - Advanced and compatibility: newer WebView, dex2oat optimization, shared folders, developer mode.
 

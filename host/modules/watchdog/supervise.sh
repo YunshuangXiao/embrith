@@ -75,6 +75,11 @@ cmd_supervise() {
     # follow-up publishes 3 s and 10 s after a change that takes a moment to settle: Wi-Fi / Bluetooth (QDUE, quick), SSH (SDUE, full)
     if [ -n "$QDUE" ] && [ "$el" -ge "${QDUE%% *}" ]; then QDUE=${QDUE#"${QDUE%% *}"}; QDUE=${QDUE# }; publish_status quick; fi
     if [ -n "$SDUE" ] && [ "$el" -ge "${SDUE%% *}" ]; then SDUE=${SDUE#"${SDUE%% *}"}; SDUE=${SDUE# }; publish_status; fi
+    if [ -f "$K_CTL/power_menu" ]; then   # top left held: Android takes the file and shows the menu. Still there 4 s after it was first seen: Android does not answer, exit as before
+      if [ -z "${PM_SEEN:-}" ]; then PM_SEEN=$el
+      elif [ $((el - PM_SEEN)) -ge 4 ]; then say "power menu not taken by Android: exit"; rm -f "$K_CTL/power_menu"; PM_SEEN=; snapshot $el; cmd_stop; return; fi
+    else PM_SEEN=; fi
+    if [ -f "$K_CTL/kindle_reboot" ]; then say "Kindle reboot requested from Android"; rm -f "$K_CTL/kindle_reboot"; snapshot $el; cmd_stop; sync; say "rebooting the Kindle"; { reboot || /sbin/reboot || busybox reboot; } >/dev/null 2>&1; return; fi
     if [ -f /var/tmp/kdisp/ctl/exit ]; then say "exit requested from Android (launcher button, or bottom right corner held)"; rm -f /var/tmp/kdisp/ctl/exit; snapshot $el; cmd_stop; return; fi
     if [ -f "$STOPF" ]; then
       say "STOP file found"; rm -f "$STOPF"; snapshot $el

@@ -60,7 +60,47 @@ wifi_add() {
   ( timeout 60 lipc-set-prop -s com.lab126.cmd ensureConnection "wifi:$wa_e" ) </dev/null >/dev/null 2>&1 &
 }
 
+# The actions of the action table (launcher: Actions.java). ctl/act holds one request per line, "id [argument]". The id is the same as in the table; an action
+# that already has its own request file only creates that file (it is handled below in the same pass), the others are done here.
+act_touch() { : > "$K_CTL/$1"; chmod 666 "$K_CTL/$1" 2>/dev/null; }
+act_clamp() { v=$(printf '%s' "$1" | tr -dc '0-9-'); [ -n "$v" ] || v=0; [ "$v" -lt 0 ] && v=0; [ "$v" -gt 24 ] && v=24; echo "$v"; }   # 0..24: the range of powerd
+act_light() { timeout 10 lipc-set-prop -i com.lab126.powerd flIntensity "$(act_clamp "$1")" 2>/dev/null; }
+act_step() { n=$(printf '%s' "$1" | tr -dc '0-9'); [ -n "$n" ] || n=1; echo "$n"; }
+act_run() {   # $1 = id, $2 = argument
+  case "$1" in
+    wifi_on)  timeout 15 lipc-set-prop -i com.lab126.cmd wirelessEnable 1 2>/dev/null ;;
+    wifi_off) timeout 15 lipc-set-prop -i com.lab126.cmd wirelessEnable 0 2>/dev/null ;;
+    wifi_toggle) radio_wifi; QDUE="$((${el:-0} + 3)) $((${el:-0} + 10))" ;;
+    bt_toggle)   radio_bt; QDUE="$((${el:-0} + 3)) $((${el:-0} + 10))" ;;
+    light_set) act_light "$2" ;;
+    light_inc|light_dec)
+      cur=$(timeout 5 lipc-get-prop com.lab126.powerd flIntensity 2>/dev/null | tr -dc '0-9'); [ -n "$cur" ] || cur=0
+      if [ "$1" = light_inc ]; then act_light "$((cur + $(act_step "$2")))"; else act_light "$((cur - $(act_step "$2")))"; fi ;;
+    light_toggle)
+      cur=$(timeout 5 lipc-get-prop com.lab126.powerd flIntensity 2>/dev/null | tr -dc '0-9'); [ -n "$cur" ] || cur=0
+      if [ "$cur" -gt 0 ]; then echo "$cur" > "$K_CTL/flo" 2>/dev/null; act_light 0
+      else o=$(cat "$K_CTL/flo" 2>/dev/null | tr -dc '0-9'); [ -n "$o" ] && [ "$o" -gt 0 ] || o=10; act_light "$o"; fi ;;
+    warm_set|warm_inc|warm_dec)
+      cur=$(timeout 5 lipc-get-prop com.lab126.powerd currentAmberLevel 2>/dev/null | tr -dc '0-9'); [ -n "$cur" ] || cur=0
+      case "$1" in warm_set) w=$2 ;; warm_inc) w=$((cur + $(act_step "$2"))) ;; *) w=$((cur - $(act_step "$2"))) ;; esac
+      w=$(act_clamp "$w"); conf_put WARM_DEFAULT "$w"; amber_set "$w" ;;
+    sleep) sleep_request "action" ;;
+    refresh) act_touch clear ;;
+    screenshot) act_touch screenshot ;;
+    restart_app) act_touch restart ;;
+    reboot) act_touch kindle_reboot ;;
+    usb_eject) act_touch usb_eject ;;
+    check_update) act_touch netupd_check ;;
+    exit_app) act_touch exit ;;
+    *) say "act: unknown action $1" ;;
+  esac
+  STAT_LAST=0
+}
+
 ctl_requests() {
+  if [ -f "$K_CTL/act" ]; then mv "$K_CTL/act" "$K_CTL/act.run" 2>/dev/null
+    while read -r act_id act_arg; do [ -n "$act_id" ] && act_run "$act_id" "$act_arg"; done < "$K_CTL/act.run"
+    rm -f "$K_CTL/act.run"; fi
   if [ -f "$K_CTL/status_req" ]; then q=; read -r q < "$K_CTL/status_req" 2>/dev/null; rm -f "$K_CTL/status_req"   # "quick" = skip the SSH queries
     case "$q" in quick) publish_status quick ;; *) publish_status ;; esac; STAT_LAST=${el:-1}; fi   # the launcher shows status (panel, settings): fresh values, SSH included
   [ -f "$K_CTL/wifi" ] && { rm -f "$K_CTL/wifi"; radio_wifi; STAT_LAST=0; QDUE="$((${el:-0} + 3)) $((${el:-0} + 10))"; }

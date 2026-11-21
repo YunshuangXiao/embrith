@@ -86,7 +86,7 @@ public final class Ui {
      * 按下反馈: 前景(文字/图标)按屏幕坐标做 50% 棋盘格变淡, 背景不动; 松开恢复原样.
      * 棋盘相位取屏幕坐标奇偶, 恢复后每个像素回到原值. DU 即可显示, 不需要灰阶波形.
      */
-    static void fade(View v, boolean on) {
+    public static void fade(View v, boolean on) {
         if (v instanceof IconView) {
             ((IconView) v).setFade(on);
         } else if (v instanceof TextView) {
@@ -192,11 +192,53 @@ public final class Ui {
             d.setOnShowListener(new android.content.DialogInterface.OnShowListener() {
                 @Override public void onShow(android.content.DialogInterface di) {
                     sideBySide(d);
+                    plain(d);
                     View m = d.findViewById(android.R.id.message);
                     if (m instanceof TextView) ((TextView) m).setLineSpacing(dp(ctx, 4), 1f);   // some air between the lines of the message
                 }
             });
             return d;
+        }
+
+        /**
+         * The buttons and the list of a dialog have no ripple and no gray highlight (every animation frame is a refresh of the e-ink panel):
+         * while pressed the text fades, like on every other button, and nothing else changes.
+         */
+        private static void plain(android.app.AlertDialog d) {
+            int[] ids = { android.content.DialogInterface.BUTTON_POSITIVE, android.content.DialogInterface.BUTTON_NEGATIVE,
+                android.content.DialogInterface.BUTTON_NEUTRAL };
+            for (int id : ids) {
+                android.widget.Button b = d.getButton(id);
+                if (b == null) continue;
+                b.setBackground(null);
+                b.setOnTouchListener(new View.OnTouchListener() {
+                    @Override public boolean onTouch(View v, MotionEvent e) {
+                        int act = e.getActionMasked();
+                        if (act == MotionEvent.ACTION_DOWN) fade(v, true);
+                        else if (act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) fade(v, false);
+                        return false;
+                    }
+                });
+            }
+            final android.widget.ListView lv = d.getListView();
+            if (lv == null) return;
+            lv.setSelector(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            lv.setOnTouchListener(new View.OnTouchListener() {
+                private View cur;
+
+                @Override public boolean onTouch(View v, MotionEvent e) {
+                    int act = e.getActionMasked();
+                    if (act == MotionEvent.ACTION_DOWN) {
+                        int pos = lv.pointToPosition((int) e.getX(), (int) e.getY());
+                        cur = pos < 0 ? null : lv.getChildAt(pos - lv.getFirstVisiblePosition());
+                        if (cur != null) fade(cur, true);
+                    } else if ((act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) && cur != null) {
+                        fade(cur, false);
+                        cur = null;
+                    }
+                    return false;
+                }
+            });
         }
 
         private static void sideBySide(android.app.AlertDialog d) {
@@ -343,8 +385,11 @@ public final class Ui {
      * buttons on top of the content at the right edge (shown only when the content is longer than the area).
      */
     public static LinearLayout page(final Activity a, String title, View.OnClickListener back, View top, boolean pager) {
-        return pageOf(a, header(a, title, back), top, pager);
+        return pageOf(a, header(a, title, back), top, pager, null, HEADER_DP);
     }
+
+    /** The height of the header of the pages (name and time on one line); the first block of a page starts right under it. */
+    static final int HEADER_DP = 48;
 
     /** Like page, with a header the caller built (68 dp high). */
     public static LinearLayout pageOf(final Activity a, View head, View top, boolean pager) {
@@ -353,10 +398,15 @@ public final class Ui {
 
     /** Like pageOf, with head null for a page without a header, and a fixed view at the very bottom (below the page buttons). */
     public static LinearLayout pageOf(final Activity a, View head, View top, boolean pager, View bottom) {
+        return pageOf(a, head, top, pager, bottom, 68);
+    }
+
+    /** Like the one before, with the height of the header in dp. */
+    public static LinearLayout pageOf(final Activity a, View head, View top, boolean pager, View bottom, int headDp) {
         LinearLayout root = new LinearLayout(a);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
-        if (head != null) root.addView(head, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 68)));
+        if (head != null) root.addView(head, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(a, headDp)));
         if (top != null) {
             LinearLayout wrap = new LinearLayout(a);
             wrap.setPadding(dp(a, 16), dp(a, 6), dp(a, 16), dp(a, 6));
@@ -366,7 +416,7 @@ public final class Ui {
         final ScrollView sv = new LockScroll(a);
         final LinearLayout body = new LinearLayout(a);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(a, 16), dp(a, 4), dp(a, 16), dp(a, 20));
+        body.setPadding(dp(a, 16), 0, dp(a, 16), dp(a, 20));
         sv.addView(body, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         if (bottom != null) root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -376,9 +426,9 @@ public final class Ui {
             Pager pg = new Pager(a, sv, body);
             android.widget.FrameLayout.LayoutParams pp = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.BOTTOM);
-            pp.rightMargin = dp(a, 16);
-            pp.bottomMargin = dp(a, 16) + (bottom != null ? dp(a, Dock.HEIGHT) : 0);   // above the bottom bar when there is one
+            FloatPos.place(a, pp);   // the stored place, the same on every page, by default at the right edge
             wrap.addView(pg, pp);
+            FloatPos.attach(a, pg, pp, pg.grip());
             root.setTag(pg);
         }
         a.setContentView(wrap);
@@ -403,12 +453,15 @@ public final class Ui {
         private final ScrollView sv;
         private final View body;
         private boolean allowed = true;
+        private final View grip;
 
         Pager(final Activity a, final ScrollView sv, View body) {
             super(a);
             this.sv = sv;
             this.body = body;
             setOrientation(VERTICAL);
+            grip = FloatPos.grip(a);
+            addView(grip, FloatPos.gripParams(a));
             addView(floatButton(a, Icons.UP, new View.OnClickListener() {
                 @Override public void onClick(View v) { sv.scrollBy(0, -(sv.getHeight() - dp(a, 40))); }
             }, new View.OnLongClickListener() {
@@ -428,6 +481,16 @@ public final class Ui {
             });
         }
 
+        /** The grip on top of the buttons (FloatPos.attach makes it move the column). */
+        public View grip() {
+            return grip;
+        }
+
+        /** The grip is hidden when another column (the library tools) has a grip of its own. */
+        public void setGripVisible(boolean on) {
+            grip.setVisibility(on ? VISIBLE : GONE);
+        }
+
         /** Turn the buttons off for a page that fills the screen (they still need a content longer than the area to show). */
         public void setAllowed(boolean on) {
             allowed = on;
@@ -440,13 +503,21 @@ public final class Ui {
         }
 
         private static View round(Activity a, int icon, View.OnClickListener l) {
-            android.widget.FrameLayout f = new android.widget.FrameLayout(a);
+            final android.widget.FrameLayout f = new android.widget.FrameLayout(a);
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
             bg.setColor(Color.argb(0x66, 0xF0, 0xF0, 0xF0));
             f.setBackground(bg);
             f.setClickable(true);
             f.setOnClickListener(l);
+            f.setOnTouchListener(new View.OnTouchListener() {   // pressed: the icon fades, the round background stays
+                @Override public boolean onTouch(View v, MotionEvent e) {
+                    int act = e.getActionMasked();
+                    if (act == MotionEvent.ACTION_DOWN) fade(f, true);
+                    else if (act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) fade(f, false);
+                    return false;
+                }
+            });
             f.addView(new IconView(a, icon), new android.widget.FrameLayout.LayoutParams(dp(a, 30), dp(a, 30), Gravity.CENTER));
             f.setMinimumWidth(dp(a, 56));
             f.setMinimumHeight(dp(a, 56));
@@ -470,20 +541,29 @@ public final class Ui {
         @Override public boolean onTouchEvent(MotionEvent e) { return !locked && super.onTouchEvent(e); }
     }
 
-    /** 状态栏首行: 左边设备名, 下面日期和时间, 右边电量百分比和图标; 挂在窗口上时每 30 秒刷新一次. */
+    /**
+     * 状态栏首行: 左边设备名, 下面日期和时间, 右边电量百分比和图标; 时间在窗口可见时每分钟刷新一次, 电量只在状态变化时刷新.
+     * full = false (the header of the pages): the name on the left, only the time (HH:mm, the size of the former second row) on the right.
+     */
     static final class StatusRow extends LinearLayout {
-        private final TextView when, batt;
-        private final IconView battIcon;
-        private static StatusRow shown;   // the row on the screen now; StatusService tells it when ctl/status changes (a second FileObserver on the same directory would cancel the service's own)
-        private final Runnable tick = new Runnable() {
-            @Override public void run() {
-                refresh();
-                postDelayed(this, 30000);
-            }
+        private final boolean full;
+        private final TextView when;
+        private TextView batt;
+        private IconView battIcon;
+        private final Tick tick = new Tick(new Runnable() {
+            @Override public void run() { refresh(); }
+        }, 60000);
+        private final StatusBus.Listener bus = new StatusBus.Listener() {
+            @Override public void changed() { if (getWindowVisibility() == VISIBLE) refresh(); }
         };
 
         StatusRow(Context c) {
+            this(c, true);
+        }
+
+        StatusRow(Context c, boolean full) {
             super(c);
+            this.full = full;
             setOrientation(HORIZONTAL);
             setGravity(Gravity.CENTER_VERTICAL);
             setPadding(Frames.edge(c), 0, Frames.edge(c), 0);   // the row ends on the frame lines (page margin)
@@ -491,8 +571,13 @@ public final class Ui {
             info.setOrientation(VERTICAL);
             info.addView(text(c, Prefs.deviceName(c), 18, true));
             when = text(c, "", 15, false);
-            info.addView(when);
+            if (full) info.addView(when);
             addView(info, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            if (!full) {
+                addView(when, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                refresh();
+                return;
+            }
             batt = text(c, "", 15, false);
             batt.setIncludeFontPadding(false);   // the line box is ascent..descent: the centre of the digits follows from the font metrics
             android.graphics.Rect tb = new android.graphics.Rect();
@@ -509,41 +594,39 @@ public final class Ui {
         }
 
         void refresh() {
-            java.util.Map<String, String> st = Ctl.status();
-            int pct = Ctl.statusInt(st, "BATT", -1);
-            batt.setText(pct >= 0 ? pct + "%" : "");
-            battIcon.setLevel(pct);
-            battIcon.setCharging("1".equals(st.get("CHG")));
             Context c = getContext();
-            String fmt = t(c, Prefs.clock24(c) ? "M月d日 EEEE  HH:mm" : "M月d日 EEEE  h:mm a");
+            if (full) {
+                java.util.Map<String, String> st = Ctl.status();
+                int pct = Ctl.statusInt(st, "BATT", -1);
+                batt.setText(pct >= 0 ? pct + "%" : "");
+                battIcon.setLevel(pct);
+                battIcon.setCharging("1".equals(st.get("CHG")));
+            }
+            String fmt = full ? t(c, Prefs.clock24(c) ? "M月d日 EEEE  HH:mm" : "M月d日 EEEE  h:mm a") : (Prefs.clock24(c) ? "HH:mm" : "h:mm a");
             String now = new java.text.SimpleDateFormat(fmt, locale(c)).format(new java.util.Date());
             if (!now.contentEquals(when.getText())) when.setText(now);
         }
 
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            removeCallbacks(tick);
-            postDelayed(tick, 30000);
-            refresh();
-            shown = this;
+            if (full) StatusBus.listen(bus, "BATT", "CHG");   // the battery: only when its values change (plug, unplug, a percent)
         }
 
-        /** The host publishes ctl/status by rename: refresh at once (plug / unplug), not only on the 30 s tick. Called from StatusService. */
-        static void statusChanged() {
-            final StatusRow r = shown;
-            if (r != null) r.post(new Runnable() { @Override public void run() { r.refresh(); } });
+        @Override protected void onWindowVisibilityChanged(int visibility) {
+            super.onWindowVisibilityChanged(visibility);
+            if (visibility == VISIBLE) tick.start(); else tick.stop();   // the time: a beat at every full minute, only while the row is on the screen
         }
 
         @Override protected void onDetachedFromWindow() {
-            if (shown == this) shown = null;
-            removeCallbacks(tick);
+            StatusBus.unlisten(bus);
+            tick.stop();
             super.onDetachedFromWindow();
         }
     }
 
     /** 子页面首行: 状态栏首行, 整行可点返回(back 为 null 时 finish); 按下时变淡. title 不再显示. */
     static LinearLayout header(final Activity a, String title, View.OnClickListener back) {
-        final LinearLayout h = new StatusRow(a);
+        final LinearLayout h = new StatusRow(a, false);
         h.setClickable(true);
         h.setOnClickListener(back != null ? back : new View.OnClickListener() {
             @Override public void onClick(View v) { a.finish(); }
@@ -579,7 +662,7 @@ public final class Ui {
     /** 把分组加到页面内容区(上下留白).  */
     public static LinearLayout addGroup(LinearLayout body, LinearLayout g) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(body.getContext(), 6);
+        lp.topMargin = body.getChildCount() == 0 ? 0 : dp(body.getContext(), 6);   // the first block touches the header: no gap
         lp.bottomMargin = dp(body.getContext(), 10);
         body.addView(g, lp);
         return g;
@@ -593,7 +676,7 @@ public final class Ui {
     /** 分组标题(框外上方小字).  */
     public static TextView caption(LinearLayout body, String s) {
         TextView t = text(body.getContext(), s, 15, false);
-        t.setPadding(dp(body.getContext(), 18), dp(body.getContext(), 12), dp(body.getContext(), 18), 0);
+        t.setPadding(dp(body.getContext(), 18), body.getChildCount() == 0 ? 0 : dp(body.getContext(), 12), dp(body.getContext(), 18), 0);
         body.addView(t);
         return t;
     }

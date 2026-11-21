@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Embrith contributors
  *
- * Widgets: Desktop widgets: width and height units, which ones are checked and in what order, and how they are
- * placed. */package com.embrith.home;
+ * Widgets: The contents of the widgets (picture, text, screen time, reading) and the frame they are drawn in; used by SlotViews. */
+package com.embrith.home;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -42,125 +42,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Desktop widgets. The usable width is 10 units (2 columns of 5); a widget is 3 or 6 units high. The checked ids are kept in the order of the list
- * (Prefs "widgets", comma separated, moved in WidgetOrderActivity) and are packed one by one into the first free place of the grid
- * (columns of 5 units, rows of 3 units), so a later widget fills a gap left beside a 5:6 one, and two 5:6 can stand staggered.
- * img4 img5 (5:6) and img6 (10:6) are pictures like img; reading (10:3) = the book opened last, with cover, title, author and reading time.
- * sp1 sp2 (5:3) and sp3 (10:3) are blank: transparent, no frame. Content: img = a picture (Prefs w_img_wall, chosen in WallpaperActivity with target w_img), t1 and t2 = custom text (Prefs w_t1, w_t2),
- * st_all = screen time of all user apps, st_app and st_app2 = screen time of one app each (Prefs w_st_app_pkg, w_st_app2_pkg). Long press a widget to set it up.
+ * The pieces the desktop and settings home widgets are made of. Where a widget stands, how big it is and which type it shows is decided
+ * by Slots (flow layout) and SlotViews (content types); this class draws the frame (framed), a picture (pictureFrame), custom text
+ * (center, editText), the screen time (stats, pickApp) and the book read last (reading). A frame is a black rounded line, transparent inside.
  */
 public final class Widgets {
-    static final String[] IDS = { "img", "img2", "img3", "t1", "t2", "st_all", "st_app", "st_app2", "sp1", "sp2", "sp3", "img4", "img5", "img6", "reading" };
-    static final String[] NAMES = { "图片 1", "图片 2", "图片 3", "自定义文字 1", "自定义文字 2", "屏幕时间: 总计", "屏幕时间: 单个应用 1", "屏幕时间: 单个应用 2", "空白 1", "空白 2", "空白 3", "图片 4", "图片 5", "图片 6", "正在阅读" };
-    static final String[] SIZES = { "5:3", "5:3", "10:3", "5:3", "10:3", "5:3", "5:3", "5:3", "5:3", "5:3", "10:3", "5:6", "5:6", "10:6", "10:3" };
-    static final int[] WIDTH = { 5, 5, 10, 5, 10, 5, 5, 5, 5, 5, 10, 5, 5, 10, 10 };
-    static final int[] HEIGHT = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 3 };
-    static final String[] GROUPS = { "图片", "文字", "屏幕时间", "阅读", "空白" };   // the groups of the list in the settings
-    static final int[] GROUP = { 0, 0, 0, 1, 1, 2, 2, 2, 4, 4, 4, 0, 0, 0, 3 };   // group of each id
-    static final int ROW_H = 3;   // the unit of the heights
-    static final int MAX_H = 9;   // the checked widgets may be 9 units high in total (3 rows)
-
     private Widgets() { }
-
-    static int width(String id) {
-        for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return WIDTH[i];
-        return 0;
-    }
-
-    static int height(String id) {
-        for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return HEIGHT[i];
-        return 0;
-    }
-
-    static String name(String id) {
-        for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return NAMES[i];
-        return id;
-    }
-
-    static String size(String id) {
-        for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return SIZES[i];
-        return "";
-    }
-
-    /** One unit in pixels: the width of the desktop (without the margins of the widget frames) divided by 10. */
-    static int unit(Context c) {
-        return (c.getResources().getDisplayMetrics().widthPixels - 2 * (Frames.edge(c) - Frames.half(c))) / 10;
-    }
-
-    /**
-     * The flow layout: each widget, in list order, takes the first free place of the grid (2 columns of 5 units, rows of 3 units),
-     * looking row by row and from left to right. Returns {column, row, columns, rows} for every widget of l.
-     */
-    static List<int[]> place(List<String> l) {
-        List<int[]> out = new ArrayList<int[]>();
-        List<boolean[]> used = new ArrayList<boolean[]>();   // used.get(r)[c]: the cell is taken
-        for (String s : l) {
-            int cw = width(s) / 5, rh = height(s) / ROW_H;
-            int r = 0, c = 0;
-            search:
-            for (;; r++) {
-                for (c = 0; c + cw <= 2; c++) if (free(used, r, c, cw, rh)) break search;
-            }
-            while (used.size() < r + rh) used.add(new boolean[2]);
-            for (int i = r; i < r + rh; i++) for (int j = c; j < c + cw; j++) used.get(i)[j] = true;
-            out.add(new int[] { c, r, cw, rh });
-        }
-        return out;
-    }
-
-    private static boolean free(List<boolean[]> used, int r, int c, int cw, int rh) {
-        for (int i = r; i < r + rh; i++) {
-            if (i >= used.size()) break;
-            for (int j = c; j < c + cw; j++) if (used.get(i)[j]) return false;
-        }
-        return true;
-    }
-
-    /** The height of the layout in units: the lowest edge of the placed widgets. */
-    static int totalHeight(List<String> l) {
-        int m = 0;
-        for (int[] p : place(l)) m = Math.max(m, p[1] + p[3]);
-        return m * ROW_H;
-    }
-
-    static List<String> enabled(Context c) {
-        List<String> l = new ArrayList<String>();
-        for (String s : Prefs.getStr(c, "widgets", "").split(",")) if (s.length() > 0 && width(s) > 0 && !l.contains(s)) l.add(s);
-        return l;
-    }
-
-    /** True if checking id keeps the flow layout within MAX_H (same placing rule as HomeActivity.loadWidgets). */
-    static boolean fits(Context c, String id) {
-        List<String> l = enabled(c);
-        if (!l.contains(id)) l.add(id);
-        return totalHeight(l) <= MAX_H;
-    }
-
-    static boolean isOn(Context c, String id) {
-        return enabled(c).contains(id);
-    }
-
-    static void setOn(Context c, String id, boolean on) {
-        List<String> l = enabled(c);
-        l.remove(id);
-        if (on) l.add(id);
-        save(c, l);
-    }
-
-    /** Moves a checked widget one place up (d = -1) or down (d = 1) in the order. */
-    static void move(Context c, String id, int d) {
-        List<String> l = enabled(c);
-        int i = l.indexOf(id), j = i + d;
-        if (i < 0 || j < 0 || j >= l.size()) return;
-        Collections.swap(l, i, j);
-        save(c, l);
-    }
-
-    private static void save(Context c, List<String> l) {
-        StringBuilder sb = new StringBuilder();
-        for (String s : l) sb.append(sb.length() > 0 ? "," : "").append(s);
-        Prefs.putStr(c, "widgets", sb.toString());
-    }
 
     /** The desktop wallpaper as a page background for the library and recent (null: the switch wall_lib is off, or the wallpaper is plain white). */
     public static Drawable wallDrawable(Activity a) {
@@ -182,7 +69,7 @@ public final class Widgets {
     }
 
     /** The picture with rounded corners (transparent outside), the same radius as the frame. */
-    private static Bitmap rounded(Bitmap src, float radius) {
+    static Bitmap rounded(Bitmap src, float radius) {
         Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setShader(new BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
@@ -191,38 +78,50 @@ public final class Widgets {
         return out;
     }
 
-    static View build(final Activity a, final String id, int w, int h, final Runnable redraw) {
-        if (id.startsWith("sp")) return new View(a);   // blank widget: no frame, no background, only takes the place
+
+    /** An empty widget frame: transparent, black rounded line, the content follows the rounded corners. */
+    static FrameLayout framed(Activity a) {
         FrameLayout f = new FrameLayout(a);
-        f.setBackground(border(a, false));       // transparent: the wallpaper shows through
-        f.setClipToOutline(true);                // the content follows the rounded corners of the frame
-        f.setForeground(border(a, false));       // the frame line is drawn over the content
-        f.setLongClickable(true);
-        f.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override public boolean onLongClick(View v) { config(a, id, redraw); return true; }
-        });
-        if (id.startsWith("img")) {
+        f.setBackground(border(a, false));
+        f.setClipToOutline(true);
+        f.setForeground(border(a, false));
+        return f;
+    }
+
+    /** The size of the hints "long press to ..." in every widget. */
+    static final int HINT_SP = 16;
+
+    /** The hint of a widget that has no content yet: the same font and size in every widget. */
+    static TextView hint(Context c, String s) {
+        return center(c, s, HINT_SP, false);
+    }
+
+    /** A framed picture widget for the picture chosen as "which" (see Img.resolve), or the hint when there is none. */
+    static FrameLayout pictureFrame(Activity a, String which, int w, int h) {
+        FrameLayout f = framed(a);
+        Bitmap b = Img.load(Img.resolve(a, which), w, h, 0);
+        if (b != null) {
             ImageView iv = new ImageView(a);
             iv.setScaleType(ImageView.ScaleType.FIT_XY);
-            Bitmap b = Img.load(Img.resolve(a, "w_" + id), w, h, 0);
-            if (b != null) {
-                b = rounded(b, Ui.radius(a));   // the corners are cut out of the picture itself: no dependence on the renderer
-                iv.setImageBitmap(b);
-                f.addView(iv, new FrameLayout.LayoutParams(-1, -1));
-            } else {
-                f.addView(center(a, "长按选择图片", 16, false), new FrameLayout.LayoutParams(-1, -1));
-            }
-        } else if ("t1".equals(id) || "t2".equals(id)) {
-            f.addView(center(a, Prefs.getStr(a, "w_" + id, "长按编辑文字"), "t1".equals(id) ? 22 : 28, true), new FrameLayout.LayoutParams(-1, -1));
-        } else if ("reading".equals(id)) {
-            reading(a, f, h);
+            iv.setImageBitmap(rounded(b, Ui.radius(a)));
+            f.addView(iv, new FrameLayout.LayoutParams(-1, -1));
         } else {
-            stats(a, f, id);
+            f.addView(hint(a, "长按选择图片"), new FrameLayout.LayoutParams(-1, -1));
         }
         return f;
     }
 
-    private static TextView center(Context c, String s, int sp, boolean bold) {
+    /** The dialog that edits the custom text kept in the Prefs key. */
+    static void editText(final Activity a, final String key, final Runnable redraw) {
+        final EditText in = new EditText(a);
+        in.setText(Prefs.getStr(a, key, ""));
+        new Ui.Builder(a).setTitle("自定义文字").setView(in)
+            .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int which) { Prefs.putStr(a, key, in.getText().toString()); redraw.run(); }
+            }).setNegativeButton("取消", null).show();
+    }
+
+    static TextView center(Context c, String s, int sp, boolean bold) {
         TextView t = Ui.text(c, s, sp, bold);
         t.setGravity(Gravity.CENTER);
         t.setPadding(Ui.dp(c, 10), Ui.dp(c, 6), Ui.dp(c, 10), Ui.dp(c, 6));
@@ -231,7 +130,7 @@ public final class Widgets {
 
     // ------------------------------------------------------------------ reading
     /** The book opened last: cover, title, author and the time spent reading it. The book is read in the background. */
-    private static void reading(final Activity a, final FrameLayout f, int h) {
+    static void reading(final Activity a, final FrameLayout f, int h) {
         final int pad = Ui.dp(a, 10), ch = h - 2 * pad, cw = ch * 3 / 4;
         f.addView(center(a, "还没有阅读记录", 16, false), new FrameLayout.LayoutParams(-1, -1));
         new Thread(new Runnable() {
@@ -290,42 +189,75 @@ public final class Widgets {
     }
 
     // ------------------------------------------------------------------ screen time
-    private static void stats(final Activity a, FrameLayout f, final String id) {
+    static void stats(final Activity a, FrameLayout f, final String key, final boolean one, int h) {
+        final boolean compact = h > 0 && h < Ui.dp(a, 100);   // a thin bar: the title and the value on one line, the buttons side by side
         final TextView title = Ui.text(a, "", 15, false);
-        final TextView value = Ui.text(a, "", 28, true);
-        final TextView per = Ui.text(a, "", 14, false);
+        final TextView value = Ui.text(a, "", compact ? 22 : 28, true);
+        final TextView per = Ui.text(a, "", compact ? 12 : 14, false);
         LinearLayout left = new LinearLayout(a);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setGravity(Gravity.CENTER_VERTICAL);
         left.setPadding(Ui.dp(a, 12), 0, 0, 0);
-        left.addView(title);
-        left.addView(value);
-        left.addView(per);
+        if (compact) {
+            title.setSingleLine(true);
+            title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            per.setSingleLine(true);
+            LinearLayout line = new LinearLayout(a);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setGravity(Gravity.BOTTOM);
+            line.addView(value);
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(-2, -2);
+            plp.leftMargin = Ui.dp(a, 8);
+            plp.bottomMargin = Ui.dp(a, 3);
+            line.addView(per, plp);
+            left.addView(title);
+            left.addView(line);
+        } else {
+            left.addView(title);
+            left.addView(value);
+            left.addView(per);
+        }
         LinearLayout right = new LinearLayout(a);
-        right.setOrientation(LinearLayout.VERTICAL);
+        right.setOrientation(compact ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         right.setGravity(Gravity.CENTER);
         View.OnClickListener up = new View.OnClickListener() {
-            @Override public void onClick(View v) { Prefs.putStr(a, "w_" + id + "_mode", "w"); fill(a, id, title, value, per); }
+            @Override public void onClick(View v) { Prefs.putStr(a, "w_" + key + "_mode", "w"); fill(a, key, one, title, value, per); }
         };
         View.OnClickListener down = new View.OnClickListener() {
-            @Override public void onClick(View v) { Prefs.putStr(a, "w_" + id + "_mode", "d"); fill(a, id, title, value, per); }
+            @Override public void onClick(View v) { Prefs.putStr(a, "w_" + key + "_mode", "d"); fill(a, key, one, title, value, per); }
         };
         IconButton bu = new IconButton(a, Icons.UP, "", false, 28, 12);
         IconButton bd = new IconButton(a, Icons.DOWN, "", false, 28, 12);
         bu.setOnClickListener(up);
         bd.setOnClickListener(down);
-        right.addView(bu, new LinearLayout.LayoutParams(Ui.dp(a, 56), Ui.dp(a, 56)));
-        right.addView(bd, new LinearLayout.LayoutParams(Ui.dp(a, 56), Ui.dp(a, 56)));
-        LinearLayout row = new LinearLayout(a);
+        int bs = Ui.dp(a, compact ? 44 : 56);
+        right.addView(bu, new LinearLayout.LayoutParams(bs, bs));
+        right.addView(bd, new LinearLayout.LayoutParams(bs, bs));
+        // the screen time is read again at every full minute, only while this widget is on the screen (a page without it has no timer)
+        LinearLayout row = new LinearLayout(a) {
+            private final Tick tick = new Tick(new Runnable() {
+                @Override public void run() { fill(a, key, one, title, value, per); }
+            }, 60000);
+
+            @Override protected void onWindowVisibilityChanged(int visibility) {
+                super.onWindowVisibilityChanged(visibility);
+                if (visibility == VISIBLE) tick.start(); else tick.stop();
+            }
+
+            @Override protected void onDetachedFromWindow() {
+                tick.stop();
+                super.onDetachedFromWindow();
+            }
+        };
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.addView(left, new LinearLayout.LayoutParams(0, -1, 1f));
         row.addView(right, new LinearLayout.LayoutParams(-2, -1));
         f.addView(row, new FrameLayout.LayoutParams(-1, -1));
-        fill(a, id, title, value, per);
+        fill(a, key, one, title, value, per);
     }
 
-    private static void fill(Context c, String id, TextView title, TextView value, TextView per) {
-        boolean week = "w".equals(Prefs.getStr(c, "w_" + id + "_mode", "d"));
+    private static void fill(Context c, String key, boolean one, TextView title, TextView value, TextView per) {
+        boolean week = "w".equals(Prefs.getStr(c, "w_" + key + "_mode", "d"));
         Calendar cal = Calendar.getInstance();
         long now = cal.getTimeInMillis();
         cal.set(Calendar.HOUR_OF_DAY, 0);
@@ -333,15 +265,15 @@ public final class Widgets {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         if (week) cal.add(Calendar.DAY_OF_YEAR, -6);
-        String pkg = Prefs.getStr(c, "w_" + id + "_pkg", "");
+        String pkg = Prefs.getStr(c, "w_" + key + "_pkg", "");
         PackageManager pm = c.getPackageManager();
-        boolean one = id.startsWith("st_app");
         String name = "屏幕时间";
         if (one) {
             name = "长按选择应用";
             try { if (pkg.length() > 0) name = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0))); } catch (PackageManager.NameNotFoundException e) { pkg = ""; }
         }
         title.setText(name);
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, one && pkg.length() == 0 ? HINT_SP : 15);   // the hint has the size of every hint
         long ms = 0;
         boolean any = false;
         {   // the events of the range (today or the last 7 days), cut exactly, without the time the Kindle slept (see Usage)
@@ -364,35 +296,23 @@ public final class Widgets {
         try { return (pm.getApplicationInfo(pkg, 0).flags & ApplicationInfo.FLAG_SYSTEM) != 0; } catch (PackageManager.NameNotFoundException e) { return true; }
     }
 
-    // ------------------------------------------------------------------ long press: set up
-    private static void config(final Activity a, final String id, final Runnable redraw) {
-        if (id.startsWith("img")) {
-            a.startActivity(new Intent(a, WallpaperActivity.class).putExtra("dir", WallpaperActivity.KINDLE).putExtra("target", "w_" + id));
-        } else if ("t1".equals(id) || "t2".equals(id)) {
-            final EditText in = new EditText(a);
-            in.setText(Prefs.getStr(a, "w_" + id, ""));
-            new Ui.Builder(a).setTitle("自定义文字").setView(in)
-                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int which) { Prefs.putStr(a, "w_" + id, in.getText().toString()); redraw.run(); }
-                }).setNegativeButton("取消", null).show();
-        } else if (id.startsWith("st_app")) {
-            final PackageManager pm = a.getPackageManager();
-            Intent main = new Intent(Intent.ACTION_MAIN);
-            main.addCategory(Intent.CATEGORY_LAUNCHER);
-            List<ResolveInfo> list = pm.queryIntentActivities(main, 0);
-            Collections.sort(list, new ResolveInfo.DisplayNameComparator(pm));
-            final List<String> pk = new ArrayList<String>();
-            List<String> lb = new ArrayList<String>();
-            for (ResolveInfo ri : list) {
-                if ((ri.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0 || pk.contains(ri.activityInfo.packageName)) continue;
-                pk.add(ri.activityInfo.packageName);
-                lb.add(String.valueOf(ri.loadLabel(pm)));
-            }
-            new Ui.Builder(a).setTitle("选择应用").setItems(lb.toArray(new String[0]), new DialogInterface.OnClickListener() {
-                @Override public void onClick(DialogInterface d, int which) { Prefs.putStr(a, "w_" + id + "_pkg", pk.get(which)); redraw.run(); }
-            }).show();
-        } else {
-            Ui.toast(a, "此组件没有可设置项", false);
+    // ------------------------------------------------------------------ set up
+    /** The dialog that chooses the app of a screen time widget (the Prefs "w_<key>_pkg"). */
+    static void pickApp(final Activity a, final String key, final Runnable redraw) {
+        final PackageManager pm = a.getPackageManager();
+        Intent main = new Intent(Intent.ACTION_MAIN);
+        main.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> list = pm.queryIntentActivities(main, 0);
+        Collections.sort(list, new ResolveInfo.DisplayNameComparator(pm));
+        final List<String> pk = new ArrayList<String>();
+        List<String> lb = new ArrayList<String>();
+        for (ResolveInfo ri : list) {
+            if ((ri.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0 || pk.contains(ri.activityInfo.packageName)) continue;
+            pk.add(ri.activityInfo.packageName);
+            lb.add(String.valueOf(ri.loadLabel(pm)));
         }
+        new Ui.Builder(a).setTitle("选择应用").setItems(lb.toArray(new String[0]), new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface d, int which) { Prefs.putStr(a, "w_" + key + "_pkg", pk.get(which)); redraw.run(); }
+        }).show();
     }
 }

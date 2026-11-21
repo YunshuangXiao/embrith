@@ -37,8 +37,8 @@ import java.util.Enumeration;
 import java.util.Map;
 
 /**
- * "设置"菜单. 首页(tab = -1, 底部栏的"设置"打开它): 状态栏首行(设备名, 日期时间, 电量), 常用功能按钮(第一行 Wi-Fi, 蓝牙, 反色, 第二行两个自定义按钮),
- * 亮度和色温, 然后是并列的一级入口卡片(电源 网络 显示 个性化 书库 系统), 底部是和桌面相同的底部栏. 下拉手势打开的是下拉面板(tab = -2): 状态栏首行, 一行四个自定义按钮, 亮度和色温, 底部整条 ^ 关闭. 
+ * "设置"菜单. 首页(tab = -1, 底部栏的"设置"打开它): 状态栏首行(设备名, 日期时间, 电量), 设置主页自定义区域(组件, 见 Slots, 在 个性化 > 设置组件 里选择),
+ * 然后是并列的一级入口卡片(电源 网络 显示 个性化 书库 系统), 底部是和桌面相同的底部栏. 下拉手势打开的是下拉面板(tab = -2): 状态栏首行, 控制区(ControlPanel: 方框, 亮度和色温, 自定义按钮), 底部整条 ^ 关闭. 
  * 点入口进入该项的二级页(同一个 Activity, 带 tab 参数), 按分组各套一个圆角框, 分组标题栏右侧的信息标识点击后弹出说明窗口. 
  * 开关项用开关按钮, 只改该行; 多选一项进入三级页 ChoiceActivity. 
  */
@@ -50,7 +50,7 @@ public class MenuActivity extends Activity {
         { "电源状态", "休眠", "系统操作" },
         { "无线连接", "网络服务" },
         { "显示布局", "字体", "屏幕效果", "屏幕刷新" },
-        { "外观", "下拉面板", "设置首页", "桌面组件" },
+        { "外观", "下拉面板", "组件设置", "桌面应用" },
         { "书库位置", "最近阅读", "阅读目标", "排序" },
         { "设备信息", "地区与语言", "应用管理", "系统维护", "高级与兼容性" } };
     static final String[] SB_IDS = { "lock", "clear", "light", "exit", "none" };
@@ -101,7 +101,8 @@ public class MenuActivity extends Activity {
     }
 
     // 首页和下拉面板: 控制区(方框, 亮度和色温, 自定义按钮)
-    private ControlPanel cp;
+    private ControlPanel cp;                // the control area of the pull-down panel (null on the settings home)
+    private SettingsHomeBox homeBox;         // the widget area and the entries of the settings home
     private LinearLayout list;
     private int tab = -1;                 // -1 = 设置首页, 0.. = 二级页
 
@@ -142,9 +143,9 @@ public class MenuActivity extends Activity {
     private static final String[] HB_DEF = ControlPanel.HB_DEF;
 
     /**
-     * Settings home. From top to bottom: the status row, the control row (a square with airplane mode, Wi-Fi, Bluetooth and invert, the
-     * brightness box, the color temperature box, then the custom round buttons), six first-level entries of the same height that fill
-     * the rest of the screen, and the bottom bar. All gaps between buttons are 12 dp, all vertical gaps between parts are 14 dp.
+     * Settings home. From top to bottom: the status row, the widget area (2h + g high, the widgets are chosen in Personalize > Settings widgets),
+     * six first-level entries of the same height h that fill the rest of the screen, and the bottom bar. All gaps are the frame gap g (Frames.GAP);
+     * the sizes are worked out by SettingsHomeBox.
      */
     private void home() {
         homeInst = this;
@@ -152,15 +153,10 @@ public class MenuActivity extends Activity {
         homeRoot = root;
         root.setOrientation(LinearLayout.VERTICAL);
         applyWall();
-        root.addView(new Ui.StatusRow(this), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
+        root.addView(TopBar.build(this), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));   // the bar of the desktop
 
-        cp = new ControlPanel(this, null, null);
-        root.addView(cp.build(), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // the first-level entries: one per row, the same height, they share what is left of the screen
-        LinearLayout menus = new LinearLayout(this);
-        menus.setOrientation(LinearLayout.VERTICAL);
-        menus.setPadding(Frames.edge(this), Ui.dp(this, GAP_V), Frames.edge(this), Ui.dp(this, GAP_V));   // the page margin from the left and right edge, like the other pages (Frames)
+        // the first-level entries: one per row, the same height h; SettingsHomeBox sets h and puts the widget area above them
+        java.util.List<View> cards = new java.util.ArrayList<View>();
         for (int i = 0; i < TABS.length; i++) {
             final int idx = i;
             StringBuilder sub = new StringBuilder();
@@ -173,11 +169,10 @@ public class MenuActivity extends Activity {
             });
             card.setGravity(android.view.Gravity.CENTER_VERTICAL);
             card.setPadding(Ui.dp(this, 24), 0, Ui.dp(this, 24), 0);
-            LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-            if (i > 0) mlp.topMargin = Ui.dp(this, GAP_V);
-            menus.addView(card, mlp);
+            cards.add(card);
         }
-        root.addView(menus, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        homeBox = new SettingsHomeBox(this, cards);
+        root.addView(homeBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
         dockBar = Dock.build(this, "settings");
         root.addView(dockBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         setContentView(root);
@@ -210,6 +205,7 @@ public class MenuActivity extends Activity {
         if (tab == -1) { Dock.refresh(this, dockBar); applyWall(); }
         render();
         if (tab < 0 && cp != null) cp.start();
+        if (tab == -1 && homeBox != null) homeBox.area().update();
     }
 
     @Override
@@ -249,6 +245,7 @@ public class MenuActivity extends Activity {
     private void update() {
         Map<String, String> st = Ctl.status();
         if (tab < 0 && cp != null) cp.update();
+        if (tab == -1 && homeBox != null) homeBox.area().update();
         if (battRow != null) {
             int batt = Ctl.statusInt(st, "BATT", -1);
             battRow.setValue(batt >= 0 ? batt + "%" : "未知");
@@ -293,6 +290,13 @@ public class MenuActivity extends Activity {
         };
     }
 
+    /** Opens a widget setting page for a set of widget slots (sh = settings home, dh = desktop). */
+    private View.OnClickListener open(final Class<?> cls, final String set) {
+        return new View.OnClickListener() {
+            @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, cls).putExtra("set", set)); }
+        };
+    }
+
     // ------------------------------------------------------------------ 电源
     private void power() {
         LinearLayout g = section("电源状态");
@@ -307,7 +311,7 @@ public class MenuActivity extends Activity {
             "没有触摸就自动休眠(同按电源键)的时限", Ctl.get("SLEEP_MIN", "10")));
 
         g = section("系统操作", "重启 Embrith\t重启只重启安卓容器, 不会回到 Kindle, 约一分钟后回到桌面.",
-            "退出 Embrith\t退出后回到 Kindle 原来的界面. 任何时候单指按住屏幕左上角 3 秒也能退出.");
+            "退出 Embrith\t退出后回到 Kindle 原来的界面. 任何时候单指按住屏幕左上角 3 秒会弹出菜单: 重启 Embrith, 退出 Embrith, 重启 Kindle.");
         Ui.add(g, Ui.row(this, "重启 Embrith", "", new View.OnClickListener() {
             @Override public void onClick(View v) {
                 new Ui.Builder(MenuActivity.this).setTitle("重启 Embrith")
@@ -411,9 +415,23 @@ public class MenuActivity extends Activity {
         LinearLayout g = section("外观");
         Ui.add(g, Ui.nav(this, "壁纸与锁屏图片", "", open(WallpaperActivity.class)));
         Ui.add(g, Ui.nav(this, "手势", "", open(GestureActivity.class)));
+        Ui.add(g, Ui.nav(this, "悬浮按钮位置", "恢复默认", new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                FloatPos.reset(MenuActivity.this);
+                Ui.toast(MenuActivity.this, "悬浮按钮已恢复默认位置", false);
+            }
+        }));
 
-        g = section("设置首页和下拉面板", "控制区\t设置首页和下拉面板上方的控制区相同: 左边方框固定为飞行模式,Wi-Fi,蓝牙,反色; 中间是亮度和色温条; 最右边两个圆形按钮可以自定义.");
+        g = section("下拉面板", "控制区\t下拉面板上方的控制区: 左边方框固定为飞行模式,Wi-Fi,蓝牙,反色; 中间是亮度和色温条; 最右边两个圆形按钮可以自定义.");
         for (int k = 0; k < HB_DEF.length; k++) Ui.add(g, sbRow("hb" + (k + 1), "自定义按钮 " + (k + 1), HB_DEF[k]));
+
+        g = section("组件设置", "组件设置\t设置组件是设置首页上方的自定义区域, 桌面组件是桌面上方的自定义区域, 宽度都同页面框. 在组件页里按尺寸选择各放几个(受剩余空间限制), 设置每个组件的类型, 排列顺序, 并预览整个区域; 所有边缘按格对齐, 没有被组件覆盖的格子保持空白. 桌面组件最高占满除一行应用外的全部高度, 其余留给应用区. 回到设置首页或桌面后在组件上长按可以设置内容(图片, 文字, 时钟样式和时区, 按钮动作, 屏幕时间的应用). 屏幕时间需要给桌面授予使用情况访问权限.");
+        Ui.add(g, Ui.nav(this, "设置组件", "", open(SlotOrderActivity.class, "sh")));
+        Ui.add(g, Ui.nav(this, "桌面组件", "", open(SlotOrderActivity.class, "dh")));
+
+        g = section("桌面应用", "每行显示\t桌面上每行放几个应用图标, 可选 4, 5, 6 个. 图标之间的间距自动调整.");
+        Ui.add(g, choiceRow("每行显示", new String[] { "4", "5", "6" }, new String[] { "4 个(默认)", "5 个", "6 个" }, null, "pref", "home_cols", "4",
+            "桌面每行放几个应用图标", Prefs.getStr(this, "home_cols", "4")));
 
         g = section("系统页边距", "页边距\t所有页面的框到屏幕左右和底部边缘的距离, 设置后各页面自动重新排版. 默认 22 dp.");
         Ui.add(g, choiceRow("系统页边距", MARGIN, MARGIN_TEXT, null, "pref", Frames.KEY, String.valueOf(Frames.EDGE), null, String.valueOf(Frames.edgeDp(this))));
@@ -443,42 +461,6 @@ public class MenuActivity extends Activity {
             Ui.add(g, drows[i]);
         }
         dindex.run();
-
-        g = section("桌面应用", "每行显示\t桌面上每行放几个应用图标, 可选 4, 5, 6 个. 图标之间的间距自动调整.");
-        Ui.add(g, choiceRow("每行显示", new String[] { "4", "5", "6" }, new String[] { "4 个(默认)", "5 个", "6 个" }, null, "pref", "home_cols", "4",
-            "桌面每行放几个应用图标", Prefs.getStr(this, "home_cols", "4")));
-
-        g = section("桌面组件", "桌面组件\t按类型勾选组件, 方框里的数字是排列顺序; 右侧是宽:高(一行宽 10, 宽 5 的可两个并排, 宽 10 的独占一行, 桌面最多放 9 个单位高; 按顺序依次放进最靠上靠左的空位, 后面的小组件会填进 5:6 旁边的空位, 两个 5:6 可以错位排列). 勾选后在\"调整顺序\"里用 ▲ ▼ 排序并查看预览. 回到桌面后在组件上长按进行设置. 屏幕时间需要给桌面授予使用情况访问权限.");
-        Ui.add(g, Ui.nav(this, "调整顺序", "", open(WidgetOrderActivity.class)));
-        final String[] wids = Widgets.IDS;
-        final Ui.CheckRow[] wrows = new Ui.CheckRow[wids.length];
-        final Runnable windex = new Runnable() {           // the box of a checked widget shows its place in the order
-            @Override public void run() {
-                java.util.List<String> en = Widgets.enabled(MenuActivity.this);
-                for (int k = 0; k < wids.length; k++) wrows[k].setIndex(en.indexOf(wids[k]) + 1);
-            }
-        };
-        for (int k = 0; k < Widgets.GROUPS.length; k++) {
-            g = section(Widgets.GROUPS[k]);
-            for (int i = 0; i < wids.length; i++) {
-                if (Widgets.GROUP[i] != k) continue;
-                final String wid = wids[i];
-                final int at = i;
-                wrows[i] = Ui.indexRow(this, Widgets.NAMES[i], Widgets.SIZES[i], Widgets.isOn(this, wid), new Ui.OnToggle() {
-                    @Override public void toggled(boolean on) {
-                        if (on && !Widgets.fits(MenuActivity.this, wid)) {
-                            wrows[at].setOn(false);
-                            Ui.toast(MenuActivity.this, "桌面最多放 9 个单位高, 请先取消别的组件", false);
-                            return;
-                        }
-                        Widgets.setOn(MenuActivity.this, wid, on);
-                        windex.run();
-                    }
-                });
-                Ui.add(g, wrows[i]);
-            }
-        }
-        windex.run();
     }
 
     // ------------------------------------------------------------------ 书库
@@ -537,6 +519,13 @@ public class MenuActivity extends Activity {
         Ui.add(g, Ui.switchRow(this, "最近页显示所在文件夹", "1".equals(Prefs.getStr(this, "lib_parent", "0")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Prefs.putStr(MenuActivity.this, "lib_parent", on ? "1" : "0"); }
         }));
+
+        g = section("TXT 章节", "章节正则\t自己写一个正则式, 书里的每一行(去掉行首行尾的空白)只要能匹配上就算章节标题; 对不上或少于两章时用自动检测. 改了以后重新打开书生效, 阅读位置可能偏移.\n\n"
+            + "例子\t^\\s*第[0-9一二三四五六七八九十零〇百千两]+[章回节卷集部篇].{0,30}$");
+        txtRow = Ui.nav(this, "章节正则", txtRegexShown(), new View.OnClickListener() {
+            @Override public void onClick(View v) { editTxtRegex(); }
+        });
+        Ui.add(g, txtRow);
 
         g = section("排序");
         Ui.add(g, choiceRow("排序方式", LSORT, LSORT_TEXT, null, "pref", "lib_sort", "name", null, Prefs.getStr(this, "lib_sort", "name")));
@@ -712,11 +701,11 @@ public class MenuActivity extends Activity {
     }
 
     // ------------------------------------------------------------------ 系统
-    private static final String[] TZ = {
+    static final String[] TZ = {
         "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
         "America/Sao_Paulo", "Europe/London", "Europe/Paris", "Europe/Athens", "Europe/Moscow", "Asia/Dubai", "Asia/Karachi",
         "Asia/Kolkata", "Asia/Dhaka", "Asia/Bangkok", "Asia/Shanghai", "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland" };
-    private static final String[] TZ_CITY = {
+    static final String[] TZ_CITY = {
         "檀香山", "安克雷奇", "洛杉矶", "丹佛", "芝加哥", "纽约",
         "圣保罗", "伦敦", "巴黎 / 布鲁塞尔 / 柏林", "雅典", "莫斯科", "迪拜", "卡拉奇",
         "新德里", "达卡", "曼谷", "北京", "东京", "悉尼", "奥克兰" };
@@ -876,6 +865,44 @@ public class MenuActivity extends Activity {
                 }
             })
             .setNegativeButton("取消", null)
+            .show();
+    }
+
+    private Ui.Row txtRow;
+
+    private String txtRegexShown() {
+        String r = Prefs.getStr(this, "txt_regex", "").trim();
+        return r.length() == 0 ? Ui.t(this, "自动") : Ui.t(this, "自定义");
+    }
+
+    /** The regular expression for the chapters of a txt book: checked when it is saved (it must compile); empty = the automatic detection. */
+    private void editTxtRegex() {
+        final EditText in = new EditText(this);
+        in.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        in.setHint(Ui.t(this, "留空 = 自动检测"));
+        in.setText(Prefs.getStr(this, "txt_regex", ""));
+        in.setSelection(in.getText().length());
+        new Ui.Builder(this).setTitle("TXT 章节正则").setView(in)
+            .setPositiveButton("好", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    String r = in.getText().toString().trim();
+                    if (r.length() > 0) {
+                        try { java.util.regex.Pattern.compile(r); } catch (RuntimeException e) {
+                            Ui.toast(MenuActivity.this, "正则式不正确: " + String.valueOf(e.getMessage()).split("\n")[0], true);
+                            return;
+                        }
+                    }
+                    Prefs.putStr(MenuActivity.this, "txt_regex", r);
+                    if (txtRow != null) txtRow.setValue(txtRegexShown());
+                }
+            })
+            .setNegativeButton("取消", null)
+            .setNeutralButton("恢复自动", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    Prefs.putStr(MenuActivity.this, "txt_regex", "");
+                    if (txtRow != null) txtRow.setValue(txtRegexShown());
+                }
+            })
             .show();
     }
 

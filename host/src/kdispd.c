@@ -240,6 +240,7 @@ static unsigned flat_gray_pm(const uint8_t* src, const struct rect* r) {
 #define MAXBANDS 8
 #define BAND_GAP 24
 #define FLAT_GRAY_PM 20     /* a flat gray area (background, button) above this share (1/1000) of a band rules out the DU waveform too */
+#define PIC_FAST_PM 200     /* a band of a fast burst with at least this share (1/1000) of mid-gray is a picture (cover, photo): not DU */
 #define BG_GRAY_PM 100      /* unchanged gray inside a band (wallpaper, photo) above this share (1/1000) rules out the DU waveform */
 static uint8_t* g_prev;
 /* Overlay state (a reader's bars and panels): while it is open every update is local, whatever ctl/turn says. It starts when a bar or an
@@ -1078,18 +1079,22 @@ int main(int argc, char** argv) {
                 count_changed(sdata, &bands[i], &chg, &gchg);
                 /* only a band up to ui_pct of the screen can be local; a big band here was declared UI or is scrolling */
                 int sparse = chg * 5 <= area;
-                int local = !fast && cf.local_wfm != WFM_AUTO && area * 100 <= (unsigned long)cf.ui_pct * g_panel_w * g_panel_h;
-                unsigned gpm = fast ? 0 : gray_pm(sdata, &bands[i]);
-                unsigned gpc = fast ? 0 : (unsigned)(gchg * 1000 / area);   /* gray share of the changed pixels only */
+                /* a picture (book covers loading one after the other) cannot go out in DU even inside a burst: it would show in black and white
+                 * until the settle refresh redraws it in gray. Keys of the soft keyboard stay DU. */
+                int fst = fast;
+                if (fst && !kb_on && gray_pm(sdata, &bands[i]) >= PIC_FAST_PM) fst = 0;
+                int local = !fst && cf.local_wfm != WFM_AUTO && area * 100 <= (unsigned long)cf.ui_pct * g_panel_w * g_panel_h;
+                unsigned gpm = fst ? 0 : gray_pm(sdata, &bands[i]);
+                unsigned gpc = fst ? 0 : (unsigned)(gchg * 1000 / area);   /* gray share of the changed pixels only */
                 /* gray in the band that DU would force to black or white: unchanged mid-gray, or any flat gray area (a light or dark
                  * gray background is outside the mid-gray range of gray_pm and showed up as a black or white rectangle) */
-                int bgray = (gpm > gpc && gpm - gpc >= BG_GRAY_PM) || (!fast && flat_gray_pm(sdata, &bands[i]) >= FLAT_GRAY_PM);
+                int bgray = (gpm > gpc && gpm - gpc >= BG_GRAY_PM) || (!fst && flat_gray_pm(sdata, &bands[i]) >= FLAT_GRAY_PM);
                 /* small band, not fast: with gray (text edges) it goes out once in the gray waveform, without gray DU is lossless and
                  * needs no clean-up. A band with gray in what changed (also a sparse one: text edges are gray) goes out in the gray waveform,
                  * DU does not drive pixels that turn gray. Fast bands keep DU plus the clean-up when it is quiet. */
                 int kb = kb_on && bands[i].y + 8 >= kb_y;        /* inside the keyboard: always the black/white waveform, grays are cleaned up when it is quiet */
-                grayb[i] = fast || kb ? 0 : (!local || bgray || gpc >= 5);
-                int only_changed = (local || (kb && !fast)) && !bgray && (gpc < 5 || sparse);
+                grayb[i] = fst || kb ? 0 : (!local || bgray || gpc >= 5);
+                int only_changed = (local || (kb && !fst)) && !bgray && (gpc < 5 || sparse);
                 nosettle[i] = only_changed && gpc < 5;
                 bmode[i] = grayb[i] ? page_mode(&cf) : local_mode(&cf); bflash[i] = 0;
                 int ddith = 0, dm = nd ? decl_for(decls, nd, &bands[i], &ddith) : -1;

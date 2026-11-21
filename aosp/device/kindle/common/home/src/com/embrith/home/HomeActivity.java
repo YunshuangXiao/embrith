@@ -46,10 +46,7 @@ public class HomeActivity extends Activity {
     private BaseAdapter adapter;
     private View emptyBox;
     private ImageView wall;
-    private LinearLayout widgetsBox;   // the widget blocks, between block 0 (top row) and block 1 (app grid)
-    private final Runnable redraw = new Runnable() {
-        @Override public void run() { loadWidgets(); }
-    };
+    private HomeBody homeBody;   // the widget area and the app block (block 1) below the top row (block 0)
     private String shownWall = "?";
     // before the user is unlocked (Direct Boot) the package manager does not list the apps the user installed: draw them when it is unlocked
     private final BroadcastReceiver unlocked = new BroadcastReceiver() {
@@ -74,56 +71,8 @@ public class HomeActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         frame.addView(root, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // top bar: embrith (bold) | power
-        FrameLayout bar = new FrameLayout(this);
-        TextView title = Ui.text(this, "Embrith · 余烬", 26, true);
-        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        tp.leftMargin = Frames.edge(this);   // the title starts on the left frame line (page margin)
-        bar.addView(title, tp);
-        // power button: sleep only (same as the power key)
-        IconButton power = new IconButton(this, Icons.LOCK, "", true, 30, 11);
-        power.setContentDescription("休眠");
-        power.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
-        power.setGravity(Gravity.CENTER);
-        power.setNoFade();
-        power.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) { Ctl.request("sleep"); }
-        });
-        // refresh button: full screen flash to clear ghosting (left of the power button)
-        IconButton refresh = new IconButton(this, Icons.REFRESH, "", true, 30, 11);
-        refresh.setContentDescription("刷新");
-        refresh.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
-        refresh.setGravity(Gravity.CENTER);
-        refresh.setNoFade();
-        refresh.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { Ctl.request("clear"); }
-        });
-        // right side: refresh and power buttons
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.HORIZONTAL);
-        // clean-up button: free the background apps, the same as Settings > System > Memory management (between refresh and sleep)
-        IconButton clean = new IconButton(this, Icons.BROOM, "", true, 30, 11);
-        clean.setContentDescription("清理");
-        clean.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
-        clean.setGravity(Gravity.CENTER);
-        clean.setNoFade();
-        clean.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { MenuActivity.freeMemory(HomeActivity.this, null); }
-        });
-        right.addView(refresh, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        right.addView(clean, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        right.addView(power, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        FrameLayout.LayoutParams mp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        mp.rightMargin = Frames.edge(this) - Ui.dp(this, 12);   // minus the 12 padding of the icon: the icon ends on the right frame line
-        bar.addView(right, mp);
-        // block 0 = this top row, no border; the blocks below line up with its content (22 from both edges)
-        root.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
-        widgetsBox = new LinearLayout(this);
-        widgetsBox.setOrientation(LinearLayout.VERTICAL);
-        root.addView(widgetsBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // top bar: the name on the left, refresh | clean up | sleep on the right (the same bar as the settings home, see TopBar)
+        root.addView(TopBar.build(this), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
 
         // no apps yet: a big "+"
         LinearLayout box = new LinearLayout(this);
@@ -144,9 +93,6 @@ public class HomeActivity extends Activity {
         emptyBox = box;
         // it takes the place of the app block (block 1): same frame, same size; either this or the grid is shown
         box.setBackground(Widgets.border(this, false));
-        LinearLayout.LayoutParams bxp = Frames.params(this, 0, 0, true);   // same margins as the grid (gp), and as every frame
-        bxp.weight = 1f;
-        root.addView(box, bxp);
 
         GridView grid = new GridView(this);
         grid.setVisibility(View.GONE);   // shown by refresh() once there are apps (the "+" block is shown until then)
@@ -166,9 +112,8 @@ public class HomeActivity extends Activity {
                 launch(apps.get(position));
             }
         });
-        LinearLayout.LayoutParams gp = Frames.params(this, 0, 0, true);   // block 1 takes the rest of the height
-        gp.weight = 1f;
-        root.addView(grid, gp);
+        homeBody = new HomeBody(this, emptyBox, grid);   // the widgets, and block 1 below them, take the rest of the height
+        root.addView(homeBody, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         gridView = grid;
         dockBar = Dock.build(this, "home");
         root.addView(dockBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -187,6 +132,11 @@ public class HomeActivity extends Activity {
     }
 
     private GridView gridView;
+
+    /** The height of one row of apps (the grid padding, the cell, the icon, a name of two lines): this much always stays for the apps. */
+    int appRowPx() {
+        return Ui.dp(this, 24 + 8 + 8) + iconPx + Math.round(2 * 1.25f * labelSp * getResources().getDisplayMetrics().scaledDensity);
+    }
 
     private int iconPx, labelSp = 16;   // the icon and the name of an app, they follow the number of apps per row (applyCols)
 
@@ -219,6 +169,7 @@ public class HomeActivity extends Activity {
         if (UsbActivity.active) { startActivity(new android.content.Intent(this, UsbActivity.class)); return; }
         Dock.refresh(this, dockBar);
         applyCols(gridView);
+        homeBody.requestLayout();   // the row of apps may have changed height (apps per row)
         if (adapter != null) adapter.notifyDataSetChanged();
         com.embrith.library.Screens.syncUsage(this);
         Dock.noSwipe();   // 桌面和其他页面互切不是翻页, 通知显示端这次不用翻页动画 (底部栏切换除外)
@@ -240,27 +191,9 @@ public class HomeActivity extends Activity {
         return r;
     }
 
+    /** Draws the widgets again (their content may have changed); the apps below move up or down to fill the height. */
     private void loadWidgets() {
-        widgetsBox.removeAllViews();
-        int side = Frames.edge(this), m = Frames.half(this);   // the widget frames start the page margin from the edges, like every other frame (Frames)
-        int u = Widgets.unit(this);   // 10 units across, a widget is 3 or 6 units high
-        widgetsBox.setPadding(side - m, 0, side - m, 0);
-        final int total = getResources().getDisplayMetrics().widthPixels - 2 * (side - m);   // the width of the grid: the columns are cut from it exactly, no pixels left over on the right
-        List<String> en = Widgets.enabled(this);
-        List<int[]> pos = Widgets.place(en);
-        FrameLayout grid = new FrameLayout(this);   // the widgets sit at their grid places, the free places stay empty
-        widgetsBox.addView(grid, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Widgets.totalHeight(en) * u));
-        for (int i = 0; i < en.size(); i++) {
-            String id = en.get(i);
-            int[] p = pos.get(i);
-            int c0 = p[0] * 5, c1 = c0 + Widgets.width(id);   // first column and the column after the last one (10 columns across)
-            int left = c0 * total / 10 + m, right = c1 * total / 10 - m;
-            int pw = right - left, ph = Widgets.height(id) * u - 2 * m;
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(pw, ph);
-            lp.leftMargin = left;
-            lp.topMargin = p[1] * Widgets.ROW_H * u + m;
-            grid.addView(Widgets.build(this, id, pw, ph, redraw), lp);
-        }
+        homeBody.area().reload();
     }
 
     /** Make EmbrithIME the enabled and the default input method (the stock keyboards are not in the image). */

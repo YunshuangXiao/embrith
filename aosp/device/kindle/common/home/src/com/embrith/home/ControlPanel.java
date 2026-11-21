@@ -240,32 +240,13 @@ final class ControlPanel {
 
     /** Airplane mode: radios on -> turn the ones that are on off; all off -> turn Wi-Fi back on. */
     private void airplane() {
-        Map<String, String> st = Ctl.status();
-        boolean w = "1".equals(st.get("WIFI")), b = "1".equals(st.get("BT"));
-        if (w || b) {
-            if (w) Ctl.request("wifi");
-            if (b) Ctl.request("bt");
-        } else {
-            Ctl.request("wifi");
-        }
+        QuickActions.airplane();
         later();
     }
 
     /** The custom buttons: the same actions as the pull-down status bar; the panel stays open unless the action leaves the page. */
     private void run(String id) {
-        if ("lock".equals(id)) { Ctl.request("sleep"); }
-        else if ("invert".equals(id)) { Ctl.set("INVERT", "1".equals(Ctl.get("INVERT", "0")) ? "0" : "1"); }
-        else if ("home".equals(id)) {
-            leaving();
-            Intent i = new Intent(Intent.ACTION_MAIN);
-            i.addCategory(Intent.CATEGORY_HOME);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            c.startActivity(i);
-        } else if ("light".equals(id)) {
-            int fl = Ctl.statusInt(Ctl.status(), "FL", 0);
-            Ctl.put("light_set", fl > 0 ? "0" : "10");
-        } else if ("exit".equals(id)) { leaving(); Ctl.request("exit"); }
-        else if ("clear".equals(id)) { Ctl.request("clear"); }
+        QuickActions.run(c, id, leave);
         later();
         update();
     }

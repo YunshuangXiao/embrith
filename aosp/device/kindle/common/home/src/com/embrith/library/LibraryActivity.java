@@ -6,6 +6,7 @@
 package com.embrith.library;
 
 import com.embrith.home.Ctl;
+import com.embrith.home.FloatPos;
 import com.embrith.home.Frames;
 import com.embrith.home.IconButton;
 import com.embrith.home.Icons;
@@ -91,6 +92,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     private String labelMode = "file";   // what a book is called (lib_label: file, title, title_author, author_title)
     private String group = "none";       // how the books of a folder are grouped (lib_group: none, author, series, format, initial, tag)
     private String groupKey;             // inside a virtual folder (one group): its name
+    private View grip;                  // the grip of the floating column (moves it, see FloatPos)
     private LinearLayout tools;          // the floating column: list or grid, sorting, grouping, then the page buttons
     private Ui.Pager pager;              // the page buttons, kept in the column
     private static final String[] G_IDS = { "none", "author", "series", "format", "initial", "tag" };
@@ -173,9 +175,11 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         if (pager != null) wrap.removeView(pager);   // the page buttons move into the column: it grows and shrinks with them
         FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.RIGHT | Gravity.BOTTOM);
-        tp.rightMargin = Ui.dp(this, 16);
-        tp.bottomMargin = Ui.dp(this, 16 + Dock.HEIGHT);
+        FloatPos.place(this, tp);   // the stored place, by default at the right edge
         wrap.addView(tools, tp);
+        grip = FloatPos.grip(this);
+        FloatPos.attach(this, tools, tp, grip);
+        if (pager != null) FloatPos.attach(this, tools, tp, pager.grip());
     }
 
     /** The buttons for the page shown (only the library page has them; the grouping one only inside a folder), the page buttons last. */
@@ -201,7 +205,11 @@ public class LibraryActivity extends Activity implements Dock.Pages {
                 }), gapParams());
             }
         }
+        boolean own = tools.getChildCount() > 0;   // buttons of the page: the column has its own grip, else the one of the page buttons
+        if (own) tools.addView(grip, 0, FloatPos.gripParams(this));
+        if (pager != null) pager.setGripVisible(!own);
         if (pager != null) tools.addView(pager, tools.getChildCount() > 0 ? gapParams() : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        FloatPos.applyOpen(this, tools);   // the buttons were made again: fold them by the stored state
     }
 
     private LinearLayout.LayoutParams gapParams() {
@@ -241,6 +249,14 @@ public class LibraryActivity extends Activity implements Dock.Pages {
             TextView t = Ui.text(this, (ids[k].equals(cur) ? "> " : "") + text[k], 17, ids[k].equals(cur));
             t.setPadding(Ui.dp(this, 18), Ui.dp(this, 11), Ui.dp(this, 18), Ui.dp(this, 11));
             t.setClickable(true);
+            t.setOnTouchListener(new View.OnTouchListener() {   // pressed: the text fades, nothing else changes
+                @Override public boolean onTouch(View v, MotionEvent e) {
+                    int act = e.getActionMasked();
+                    if (act == MotionEvent.ACTION_DOWN) Ui.fade(v, true);
+                    else if (act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) Ui.fade(v, false);
+                    return false;
+                }
+            });
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     pw.dismiss();

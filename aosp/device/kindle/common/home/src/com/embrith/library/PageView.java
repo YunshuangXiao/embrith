@@ -19,6 +19,7 @@ import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.LeadingMarginSpan;
+import android.text.style.ReplacementSpan;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -163,6 +164,9 @@ final class PageView extends View {
                 int e = a;
                 while (e < n && text.charAt(e) != '\n') e++;
                 int end = Math.min(n, e + 1);
+                int b = a;
+                while (b < e && isBlank(text.charAt(b))) b++;   // the blanks the text starts the paragraph with: the indent of the setting replaces them
+                if (b > a) sp.setSpan(new NoWidth(), a, b, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 if (e > a) sp.setSpan(new LeadingMarginSpan.Standard((int) (indent * size / 2), 0), a, end, Spanned.SPAN_PARAGRAPH);
                 a = end;
             }
@@ -262,5 +266,16 @@ final class PageView extends View {
             default:
                 return true;
         }
+    }
+
+    private static boolean isBlank(char c) {
+        return c == ' ' || c == '\t' || c == '\u3000' || c == '\u00a0';
+    }
+
+    /** Takes no room and draws nothing: the characters stay in the text (so every offset in it stays the same) but are not seen. */
+    private static final class NoWidth extends ReplacementSpan {
+        @Override public int getSize(Paint p, CharSequence t, int start, int end, Paint.FontMetricsInt fm) { return 0; }
+
+        @Override public void draw(Canvas c, CharSequence t, int start, int end, float x, int top, int y, int bottom, Paint p) { }
     }
 }

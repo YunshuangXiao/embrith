@@ -36,7 +36,7 @@
 
 | 项目 | 许可证 | 引用位置 |
 |---|---|---|
-| KOReader https://github.com/koreader/koreader | AGPL-3.0 (见该项目 COPYING) | host/modules/ui/kindle_ui.sh, host/modules/power/sleep.sh, host/modules/core/settings.sh, container.sh, stop.sh, hwinfo.sh, host/modules/conf/models.conf, host/embrith.sh, host/src/kdispd.c, host/src/kgest.c, host/tools/build.sh |
+| KOReader https://github.com/koreader/koreader | AGPL-3.0 (见该项目 COPYING) | host/modules/ui/kindle_ui.sh, host/modules/power/sleep.sh, host/modules/core/settings.sh, container.sh, stop.sh, hwinfo.sh, host/modules/conf/models.conf, host/embrith.sh, host/src/kdispd.c, host/src/kgest.c, host/tools/build.sh, aosp/device/kindle/common/home/src/com/embrith/home/Actions.java (只参考动作名, 来自 frontend/dispatcher.lua, 头部已写明) |
 | VeraDroid | GPL-3.0-or-later, Copyright (C) 2026 the VeraDroid contributors | host/modules/ui/kindle_ui.sh, host/modules/core/stop.sh, host/modules/lib/enter.sh |
 | RetyOS | MIT, Copyright (c) 2026 RetyOs contributors (个别文件有自己的 SPDX, 如 ashmem_memfd.c 为 Apache-2.0) | aosp/device/kindle/common/kindleashmem/kindleashmem.c (只参考, 头部已写明), aosp/device/kindle/common/home/src/com/embrith/home/EmbrithIME.java , aosp/10-swiftshader.sh , 以及 pinyin.tsv (见第 2 节) |
 

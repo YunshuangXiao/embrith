@@ -77,6 +77,20 @@ public class EmbrithIME extends InputMethodService {
         return false;
     }
 
+    /**
+     * The keyboard floats over the page: the page is neither resized nor panned (no content or visible inset), and the whole keyboard window
+     * takes touches (the default touchable region would start at the visible inset, which is now below the window).
+     */
+    @Override
+    public void onComputeInsets(Insets outInsets) {
+        super.onComputeInsets(outInsets);
+        int h = getWindow() != null && getWindow().getWindow() != null ? getWindow().getWindow().getDecorView().getHeight() : 0;
+        if (h <= 0 && keys != null) h = keys.getHeight();
+        outInsets.contentTopInsets = h;
+        outInsets.visibleTopInsets = h;
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_FRAME;
+    }
+
     // 键盘在屏幕上时把自己的高度(像素)写进 ctl/kbd: 显示端把键盘区域内的变化一律当局部刷新, 按键不算翻页
     @Override
     public void onWindowShown() {
@@ -243,6 +257,8 @@ public class EmbrithIME extends InputMethodService {
         }
     }
 
+    private String clip = "";   // the keyboard's own clipboard
+
     private final class SoftKeys extends View {
         private final String[][] letters = {
             { "q", "w", "e", "r", "t", "y", "u", "i", "o", "p" },
@@ -264,6 +280,7 @@ public class EmbrithIME extends InputMethodService {
         private final List<RectF> rects = new ArrayList<RectF>();
         private final List<String> names = new ArrayList<String>();
         private boolean sym, more, shift;
+        private boolean selecting;   // the edit row shows the cursor keys: they extend the selection (shift + arrow)
         private int down = -1;
         private boolean repeated;   // the delete key already repeated: nothing more on release
         private final Runnable repeat = new Runnable() {
@@ -281,6 +298,16 @@ public class EmbrithIME extends InputMethodService {
             return chinese && !sym && !password;
         }
 
+        /** The edit row on top: select, select all, copy, cut, paste (in the selection mode the arrow keys, select all and copy). */
+        private int toolH() {
+            return Ui.dp(EmbrithIME.this, 44);
+        }
+
+        private String[] tools() {
+            return selecting ? new String[] { "T_SEL", "T_L", "T_R", "T_U", "T_D", "T_ALL", "T_COPY" }
+                : new String[] { "T_SEL", "T_ALL", "T_COPY", "T_CUT", "T_PASTE" };
+        }
+
         private int stripH() {
             return showStrip() ? Ui.dp(EmbrithIME.this, 28 + 48) : 0;
         }
@@ -289,6 +316,7 @@ public class EmbrithIME extends InputMethodService {
             sym = symbols;
             more = false;
             shift = false;
+            selecting = false;
             requestLayout();
             layout();
             invalidate();
@@ -313,9 +341,14 @@ public class EmbrithIME extends InputMethodService {
         private void layout() {
             rects.clear();
             names.clear();
-            int top = stripH();
-            if (top > 0) {                                      // candidates: 5 per page and a next-page button
-                float cw = getWidth() / 5.6f, y0 = Ui.dp(EmbrithIME.this, 28), y1 = top;
+            String[] tl = tools();
+            for (int i = 0; i < tl.length; i++) {
+                rects.add(new RectF(getWidth() * i / (float) tl.length, 0, getWidth() * (i + 1) / (float) tl.length, toolH()));
+                names.add(tl[i]);
+            }
+            int top = toolH() + stripH();
+            if (stripH() > 0) {                                 // candidates: 5 per page and a next-page button
+                float cw = getWidth() / 5.6f, y0 = toolH() + Ui.dp(EmbrithIME.this, 28), y1 = top;
                 int begin = page * 5;
                 for (int i = 0; i < 5 && begin + i < choices.size(); i++) {
                     rects.add(new RectF(i * cw, y0, (i + 1) * cw, y1));
@@ -335,7 +368,9 @@ public class EmbrithIME extends InputMethodService {
                 int fill = 0;
                 for (String k : pg[r]) { if (k.length() > 1) fixed += weight(k); else fill++; }
                 float unit = r == 3 || pg[r].length == 9 || fill == 0 ? 1f : (10f - fixed) / fill;
-                float x = 0;
+                float units = 0;
+                for (String k : pg[r]) units += k.length() > 1 ? weight(k) : unit;
+                float x = Math.max(0f, 10f - units) / 2f * getWidth() / 10f;   // a row shorter than 10 units (the 9-letter one) is centered
                 for (String k : pg[r]) {
                     float w = getWidth() * (k.length() > 1 ? weight(k) : unit) / 10f;
                     rects.add(new RectF(x, top + r * rowH, x + w, top + (r + 1) * rowH));
@@ -347,7 +382,7 @@ public class EmbrithIME extends InputMethodService {
 
         @Override
         protected void onMeasure(int wSpec, int hSpec) {
-            setMeasuredDimension(MeasureSpec.getSize(wSpec), stripH() + Ui.dp(EmbrithIME.this, 4 * 58 + 8));
+            setMeasuredDimension(MeasureSpec.getSize(wSpec), toolH() + stripH() + Ui.dp(EmbrithIME.this, 4 * 58 + 8));
         }
 
         @Override
@@ -357,6 +392,15 @@ public class EmbrithIME extends InputMethodService {
         }
 
         private String label(String k) {
+            if ("T_SEL".equals(k)) return Ui.t(EmbrithIME.this, "选择");
+            if ("T_ALL".equals(k)) return Ui.t(EmbrithIME.this, "全选");
+            if ("T_COPY".equals(k)) return Ui.t(EmbrithIME.this, "复制");
+            if ("T_CUT".equals(k)) return Ui.t(EmbrithIME.this, "剪切");
+            if ("T_PASTE".equals(k)) return Ui.t(EmbrithIME.this, "粘贴");
+            if ("T_L".equals(k)) return "←";
+            if ("T_R".equals(k)) return "→";
+            if ("T_U".equals(k)) return "↑";
+            if ("T_D".equals(k)) return "↓";
             if ("SHIFT".equals(k)) return "⇧";
             if ("DEL".equals(k)) return "⌫";
             if ("ENTER".equals(k)) return "↵";
@@ -377,22 +421,31 @@ public class EmbrithIME extends InputMethodService {
 
         @Override
         protected void onDraw(Canvas c) {
-            float m = Ui.dp(EmbrithIME.this, 3), sw = Ui.dp(EmbrithIME.this, 1.5f), rad = Ui.dp(EmbrithIME.this, 8);
+            float m = Ui.dp(EmbrithIME.this, 3), rad = Ui.dp(EmbrithIME.this, 8);
+            // the frames are drawn on whole pixels: an integer line width, and the edges on the pixel grid (half a pixel in for an odd width), so
+            // that no line is split over two pixels (that shows on the panel as a line that breaks off and shifts)
+            int swi = Math.max(2, Math.round(Ui.dp(EmbrithIME.this, 1.5f)));
+            float sw = swi, off = swi % 2 == 1 ? 0.5f : 0f;
             p.setTextAlign(Paint.Align.LEFT);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.BLACK);
             if (stripH() > 0) {                                  // the letters typed so far
                 p.setTextSize(Ui.dp(EmbrithIME.this, 16));
-                c.drawText(composing.toString(), Ui.dp(EmbrithIME.this, 10), Ui.dp(EmbrithIME.this, 20), p);
+                c.drawText(composing.toString(), Ui.dp(EmbrithIME.this, 10), toolH() + Ui.dp(EmbrithIME.this, 20), p);
             }
             p.setTextAlign(Paint.Align.CENTER);
+            int[] xy = new int[2];
+            getLocationOnScreen(xy);
+            int phase = (xy[0] + xy[1]) & 1;
             for (int i = 0; i < rects.size(); i++) {
                 String k = names.get(i);
                 RectF r = rects.get(i);
                 boolean cand = isCandidate(k);
-                RectF b = new RectF(r.left + m, r.top + m, r.right - m, r.bottom - m);
-                boolean on = i == down || ("SHIFT".equals(k) && shift);
-                p.setTextSize(Ui.dp(EmbrithIME.this, cand ? 24 : 22));
+                RectF b = new RectF(Math.round(r.left + m) + off, Math.round(r.top + m) + off, Math.round(r.right - m) - off, Math.round(r.bottom - m) - off);
+                boolean tool = k.startsWith("T_");
+                boolean on = ("SHIFT".equals(k) && shift) || ("T_SEL".equals(k) && selecting);   // a state: the key stays filled
+                boolean press = i == down;                  // pressed: only the label fades, the frame does not change
+                p.setTextSize(Ui.dp(EmbrithIME.this, cand ? 24 : tool ? 18 : 22));
                 if (!cand || on) {
                     p.setStyle(on ? Paint.Style.FILL : Paint.Style.STROKE);
                     p.setStrokeWidth(sw);
@@ -401,7 +454,9 @@ public class EmbrithIME extends InputMethodService {
                 }
                 p.setStyle(Paint.Style.FILL);
                 p.setColor(on ? Color.WHITE : Color.BLACK);
+                if (press && !on) p.setShader(Ui.checker(phase, false));
                 c.drawText(label(k), b.centerX(), b.centerY() - (p.ascent() + p.descent()) / 2, p);
+                p.setShader(null);
             }
         }
 
@@ -436,7 +491,50 @@ public class EmbrithIME extends InputMethodService {
             return true;
         }
 
+        /** The keys of the edit row: they act on the field through the input connection (copy and paste go to the system clipboard). */
+        private void tool(String k) {
+            InputConnection ic = getCurrentInputConnection();
+            if (ic == null) return;
+            finishRaw();
+            if ("T_SEL".equals(k)) {
+                selecting = !selecting;
+            } else if ("T_ALL".equals(k)) {
+                ic.performContextMenuAction(android.R.id.selectAll);
+            } else if ("T_COPY".equals(k)) {
+                copyOwn(ic);
+                selecting = false;
+            } else if ("T_CUT".equals(k)) {
+                if (copyOwn(ic)) ic.commitText("", 1);
+            } else if ("T_PASTE".equals(k)) {
+                pasteOwn(ic);
+            } else {
+                int code = "T_L".equals(k) ? KeyEvent.KEYCODE_DPAD_LEFT : "T_R".equals(k) ? KeyEvent.KEYCODE_DPAD_RIGHT
+                    : "T_U".equals(k) ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
+                long now = android.os.SystemClock.uptimeMillis();
+                ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, KeyEvent.META_SHIFT_ON));
+                ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, KeyEvent.META_SHIFT_ON));
+                return;
+            }
+            strip();
+        }
+
+        /** The clipboard of the keyboard itself (not the system one): copy and cut fill it, paste types it over the selection. */
+        private boolean copyOwn(InputConnection ic) {
+            CharSequence t = ic.getSelectedText(0);
+            if (t == null || t.length() == 0) return false;
+            clip = t.toString();
+            return true;
+        }
+
+        private void pasteOwn(InputConnection ic) {
+            if (clip.length() > 0) ic.commitText(clip, 1);
+        }
+
         private void fire(String k) {
+            if (k.startsWith("T_")) {
+                tool(k);
+                return;
+            }
             if ("SHIFT".equals(k)) {
                 shift = !shift;
             } else if ("SYM".equals(k)) {

@@ -13,7 +13,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
+import android.graphics.Bitmap;
+import android.os.Handler;
 import android.widget.EditText;
+import android.widget.ImageView;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.widget.LinearLayout;
 
 import java.io.File;
@@ -35,6 +40,9 @@ public class WallpaperActivity extends Activity {
     static final String[] EVERY_TEXT = { "每次回到桌面", "每 30 分钟", "每小时", "每天" };
 
     private String target = "home";
+    private ExecutorService thumbs;
+    private final Handler ui = new Handler();
+    private boolean gone;
     private File dir;                 // null = 顶层页
     private Ui.FlatButton homeBtn, lockBtn;
     private Ui.Row curRow, whiteRow, fadeRow, everyRow;
@@ -179,6 +187,37 @@ public class WallpaperActivity extends Activity {
         rows.add(r);
         paths.add(path);
         Ui.add(g, r);
+        if (new File(path).isFile()) addThumb(r, path);
+    }
+
+    /** A small gray thumbnail at the start of a picture row; decoded one at a time off the UI thread (sampled, so memory stays small). */
+    private void addThumb(final Ui.Row r, final String path) {
+        final int px = Ui.dp(this, 48);
+        final ImageView iv = new ImageView(this);
+        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px, px);
+        lp.rightMargin = Ui.dp(this, 12);
+        r.addView(iv, 0, lp);
+        if (thumbs == null) thumbs = Executors.newSingleThreadExecutor();
+        thumbs.execute(new Runnable() {
+            @Override public void run() {
+                if (gone) return;
+                final Bitmap b = Img.load(path, px, px);
+                if (b == null) return;
+                ui.post(new Runnable() {
+                    @Override public void run() {
+                        if (gone) b.recycle(); else iv.setImageBitmap(b);
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        gone = true;
+        if (thumbs != null) thumbs.shutdownNow();
+        super.onDestroy();
     }
 
     /** Preset fade values, or a typed number (0 to 90) with the number keyboard. */
