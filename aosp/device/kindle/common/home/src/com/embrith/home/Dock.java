@@ -237,16 +237,12 @@ public final class Dock {
         }
     }
     private static void go(Activity a, String id) {
-        if (id.equals("home")) {
-            if (a instanceof HomeActivity) return;
-            a.startActivity(new Intent(a, HomeActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
-        } else if (id.equals("settings")) {
-            if (a instanceof MenuActivity && ((MenuActivity) a).isHome()) return;
-            a.startActivity(new Intent(a, MenuActivity.class));
-        } else if (a instanceof Pages) {
-            ((Pages) a).goPage(id);
+        if (id.equals("settings") && a instanceof MenuActivity && ((MenuActivity) a).isHome()) return;
+        if (a instanceof Pages) {
+            ((Pages) a).goPage(id);   // the desktop is the host of all seven pages: no other activity is started
         } else {
-            a.startActivity(new Intent(a, LibraryActivity.class).putExtra(LibraryActivity.EXTRA_PAGE, id));
+            a.startActivity(new Intent(a, HomeActivity.class).putExtra(LibraryActivity.EXTRA_PAGE, id)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
         }
     }
 }

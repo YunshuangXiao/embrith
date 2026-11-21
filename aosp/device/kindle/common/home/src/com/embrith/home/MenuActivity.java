@@ -153,28 +153,32 @@ public class MenuActivity extends Activity {
         applyWall();
         root.addView(TopBar.build(this), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));   // the bar of the desktop
 
-        // the first-level entries: one per row, the same height h; SettingsHomeBox sets h and puts the widget area above them
+        homeBox = buildHomeBox(this);   // the entries and the widget area; the desktop shows the same box as its settings page
+        root.addView(homeBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        dockBar = Dock.build(this, "settings");
+        root.addView(dockBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        setContentView(root);
+        scroller = null;
+    }
+
+    /** The widget area and the six first-level entries of the settings home (one per row, the same height h; SettingsHomeBox sets h and puts the widget area above them). */
+    static SettingsHomeBox buildHomeBox(final Activity a) {
         java.util.List<View> cards = new java.util.ArrayList<View>();
         for (int i = 0; i < TABS.length; i++) {
             final int idx = i;
             StringBuilder sub = new StringBuilder();
             for (String t : TAB_SUBS[i]) {
                 if (sub.length() > 0) sub.append(" / ");
-                sub.append(Ui.t(this, t));
+                sub.append(Ui.t(a, t));
             }
-            Ui.Card card = Ui.card(this, TAB_ICONS[i], TABS[i], sub.toString(), false, new View.OnClickListener() {
-                @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, MenuActivity.class).putExtra("tab", idx)); }
+            Ui.Card card = Ui.card(a, TAB_ICONS[i], TABS[i], sub.toString(), false, new View.OnClickListener() {
+                @Override public void onClick(View v) { a.startActivity(new Intent(a, MenuActivity.class).putExtra("tab", idx)); }
             });
             card.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            card.setPadding(Ui.dp(this, 24), 0, Ui.dp(this, 24), 0);
+            card.setPadding(Ui.dp(a, 24), 0, Ui.dp(a, 24), 0);
             cards.add(card);
         }
-        homeBox = new SettingsHomeBox(this, cards);
-        root.addView(homeBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        dockBar = Dock.build(this, "settings");
-        root.addView(dockBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        setContentView(root);
-        scroller = null;
+        return new SettingsHomeBox(a, cards);
     }
 
     /** The desktop wallpaper behind the settings home when wall_lib is on, else white. */
@@ -194,6 +198,12 @@ public class MenuActivity extends Activity {
 
     private static String onOff(String v) {
         return "1".equals(v) ? "开" : "0".equals(v) ? "关" : "";
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (tab != PANEL) Ctl.refresh("ui");   // the page comes (back) into view as a whole: one gray update, not one per band
     }
 
     @Override

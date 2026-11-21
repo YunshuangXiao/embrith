@@ -5,33 +5,28 @@
  * big plus opens an apk picker. */
 package com.embrith.home;
 
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
-import android.widget.FrameLayout;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import com.embrith.library.LibraryActivity;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,13 +36,11 @@ import java.util.List;
  * The desktop: "embrith" (bold) top left, the power button top right, the apps the user installed and the bottom bar (Dock). With no apps there is a big "+":
  * it opens a file picker on the Kindle's storage to install an apk. The settings home is pulled down from the top edge.
  */
-public class HomeActivity extends Activity {
+public class HomeActivity extends LibraryActivity {
     private final List<ResolveInfo> apps = new ArrayList<ResolveInfo>();
     private BaseAdapter adapter;
     private View emptyBox;
-    private ImageView wall;
     private HomeBody homeBody;   // the widget area and the app block (block 1) below the top row (block 0)
-    private String shownWall = "?";
     // before the user is unlocked (Direct Boot) the package manager does not list the apps the user installed: draw them when it is unlocked
     private final BroadcastReceiver unlocked = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { refresh(); }
@@ -61,18 +54,7 @@ public class HomeActivity extends Activity {
         super.onCreate(state);
         lang = Prefs.getStr(this, "lang", "zh");
         margin = Frames.edgeDp(this);
-        FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Color.WHITE);
-        wall = new ImageView(this);
-        wall.setScaleType(ImageView.ScaleType.FIT_XY);
-        frame.addView(wall, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        frame.addView(root, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        // top bar: the name on the left, refresh | clean up | sleep on the right (the same bar as the settings home, see TopBar)
-        root.addView(TopBar.build(this), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
+        // the header, the page area and the bar are the library's (the same for all seven pages); the desktop is one of the pages
 
         // no apps yet: a big "+"
         LinearLayout box = new LinearLayout(this);
@@ -113,10 +95,8 @@ public class HomeActivity extends Activity {
             }
         });
         homeBody = new HomeBody(this, emptyBox, grid);   // the widgets, and block 1 below them, take the rest of the height
-        root.addView(homeBody, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        attachDesk(homeBody);
         gridView = grid;
-        dockBar = Dock.build(this, "home");
-        root.addView(dockBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // stored count > 0: no "install" page, draw the grid right away without waiting for onResume
         if (Ctl.appCount() > 0) {
@@ -124,7 +104,6 @@ public class HomeActivity extends Activity {
             grid.setVisibility(View.VISIBLE);
         }
 
-        setContentView(frame);
         useEmbrithIme();
         registerReceiver(unlocked, new IntentFilter(Intent.ACTION_USER_UNLOCKED));
         startService(new Intent(this, StatusService.class));   // the service watches the control directory (pull-down, USB, sleep)
@@ -161,34 +140,68 @@ public class HomeActivity extends Activity {
         super.onDestroy();
     }
 
+    private SettingsHomeBox settingsBox;   // built just after the first resume, or when first asked for, then kept
+
+    @Override
+    protected String firstPage() {
+        return "home";
+    }
+
+    @Override
+    protected void needSettings() {
+        settingsBox = MenuActivity.buildHomeBox(this);
+        attachSettings(settingsBox);
+    }
+
+    /** In place switch to the desktop or the settings home: only the content that may have changed is drawn again. */
+    @Override
+    protected void pageShown(String id) {
+        if ("settings".equals(id)) settingsBox.area().update(); else loadWidgets();
+    }
+
+    /** BACK on the first library page or on the settings home: to the desktop. */
+    @Override
+    protected void leave() {
+        openPage("home");
+    }
+
+    @Override
+    public void onBackPressed() {
+        if ("home".equals(pageId())) return;   // this is the home screen: BACK does nothing
+        super.onBackPressed();
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        String p = i.getStringExtra(EXTRA_PAGE);
+        openPage(p != null ? p : "home");   // a start from the bar of a page that is not the host, or the home key
+    }
+
     @Override
     protected void onResume() {
-        super.onResume();
-        if (!Prefs.getStr(this, "lang", "zh").equals(lang) || margin != Frames.edgeDp(this)) { recreate(); return; }
+        super.onResume();   // the library: margin check, bar, wallpaper, the page shown
+        if (recreating) return;
+        if (!Prefs.getStr(this, "lang", "zh").equals(lang)) { recreate(); return; }
         if (Ctl.dexoptRunning()) { startActivity(new android.content.Intent(this, DexoptActivity.class)); return; }
         if (UsbActivity.active) { startActivity(new android.content.Intent(this, UsbActivity.class)); return; }
-        Dock.refresh(this, dockBar);
-        applyCols(gridView);
-        homeBody.requestLayout();   // the row of apps may have changed height (apps per row)
-        if (adapter != null) adapter.notifyDataSetChanged();
-        com.embrith.library.Screens.syncUsage(this);
         Dock.noSwipe();   // 桌面和其他页面互切不是翻页, 通知显示端这次不用翻页动画 (底部栏切换除外)
-        refresh();
-    }
-
-    @Override
-    protected void onPause() {
-        Dock.noSwipe();
-        super.onPause();
-    }
-
-    private LinearLayout dockBar;
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent e) {
-        boolean r = super.dispatchTouchEvent(e);
-        Dock.pageTouch(this, dockBar, e);   // a horizontal swipe switches the page
-        return r;
+        if ("home".equals(pageId())) {
+            applyCols(gridView);
+            homeBody.requestLayout();   // the row of apps may have changed height (apps per row)
+            if (adapter != null) adapter.notifyDataSetChanged();
+            com.embrith.library.Screens.syncUsage(this);
+            refresh();
+        } else if ("settings".equals(pageId())) {
+            settingsBox.area().update();
+        }
+        if (settingsBox == null) {
+            // build the settings home while the desktop is idle: the first switch is then as fast as the next
+            getWindow().getDecorView().post(new Runnable() {
+                @Override public void run() { if (settingsBox == null && !isFinishing()) needSettings(); }
+            });
+        }
     }
 
     /** Draws the widgets again (their content may have changed); the apps below move up or down to fill the height. */
@@ -231,21 +244,6 @@ public class HomeActivity extends Activity {
         emptyBox.setVisibility(cnt > 0 ? View.GONE : View.VISIBLE);
         gridView.setVisibility(cnt > 0 ? View.VISIBLE : View.GONE);
         adapter.notifyDataSetChanged();
-
-        String w = Img.resolve(this, "home");
-        int fade = Img.fade(this, "home");
-        String key = w + "|" + fade;
-        if (!key.equals(shownWall)) {                       // only redraw the wallpaper when it changed
-            shownWall = key;
-            DisplayMetrics dm = getResources().getDisplayMetrics();
-            Bitmap b = w.length() == 0 ? null : Img.load(w, dm.widthPixels, dm.heightPixels, fade);
-            wall.setImageBitmap(b);
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        // this is the home screen: BACK does nothing
     }
 
     private void launch(ResolveInfo ri) {

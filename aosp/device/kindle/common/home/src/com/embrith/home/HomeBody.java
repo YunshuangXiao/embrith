@@ -42,8 +42,8 @@ final class HomeBody extends ViewGroup {
 
     /** The top of the app block: below the widgets, one gap g after them (g = m + m, the margins of the two frames). */
     private int appsTop() {
-        int m = Frames.half(a), c = area.contentH();
-        return c > 0 ? m + c + 2 * m : m;
+        int m = Frames.half(a), t = Frames.edge(a), c = area.contentH();
+        return c > 0 ? t + c + 2 * m : t;
     }
 
     @Override
@@ -51,7 +51,7 @@ final class HomeBody extends ViewGroup {
         int W = MeasureSpec.getSize(wSpec), H = MeasureSpec.getSize(hSpec);
         setMeasuredDimension(W, H);
         int m = Frames.half(a), g = 2 * m, edge = Frames.edge(a), w = W - 2 * edge, row = a.appRowPx();
-        int top = H - edge - m - g - row;   // H`: the highest a widget can be
+        int top = H - edge - edge - g - row;   // H`: the highest a widget can be
         if (H < Ui.dp(a, 200) || w <= 0) return;   // not measured with a real size yet
         Slots.Metrics now = Slots.forTop(w, g, row, Math.max(0, top));
         if (last == null || last.w != now.w || last.h != now.h || last.rows != now.rows) {
@@ -69,8 +69,8 @@ final class HomeBody extends ViewGroup {
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         if (last == null) return;
-        int m = Frames.half(a), edge = Frames.edge(a), H = b - t, at = appsTop();
-        area.layout(edge, m, edge + last.w, m + area.contentH());
+        int edge = Frames.edge(a), H = b - t, at = appsTop();   // the space above the first frame is the page margin, the same as below the last
+        area.layout(edge, edge, edge + last.w, edge + area.contentH());
         empty.layout(edge, at, edge + last.w, H - edge);
         grid.layout(edge, at, edge + last.w, H - edge);
     }

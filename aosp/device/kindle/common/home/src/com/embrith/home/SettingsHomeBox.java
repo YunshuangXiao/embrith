@@ -50,9 +50,10 @@ final class SettingsHomeBox extends ViewGroup {
 
     @Override
     protected void onMeasure(int wSpec, int hSpec) {
-        int W = MeasureSpec.getSize(wSpec), H = MeasureSpec.getSize(hSpec);
-        setMeasuredDimension(W, H);
+        int W = MeasureSpec.getSize(wSpec), H0 = MeasureSpec.getSize(hSpec);
+        setMeasuredDimension(W, H0);
         int g = Slots.gap(a), side = Frames.edge(a), w = W - 2 * side;
+        int H = H0 - 2 * side;   // the page margin above the first frame and below the last, as on the other pages
         if (H < Ui.dp(a, 200) || w <= 0) return;   // not measured with a real size yet
         int nat = 0;
         for (View v : cards) {
@@ -87,7 +88,7 @@ final class SettingsHomeBox extends ViewGroup {
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         if (grid == null) return;
         int g = Slots.gap(a), side = Frames.edge(a), w = lastW;
-        int y = 0;
+        int y = side;
         if (areaH > 0) {
             area.layout(side, y, side + w, y + areaH);
             y += areaH + g;

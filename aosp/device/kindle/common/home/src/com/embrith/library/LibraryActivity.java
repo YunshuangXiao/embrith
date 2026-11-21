@@ -83,6 +83,12 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     private boolean showName = true;      // grid: the file name under the cover (lib_name)
     private File dir;   // null = the library home
     private LinearLayout body;
+    private LinearLayout pageRoot;        // the page root: the header, the scroll view, then the desktop and the settings home (host only), the bar
+    private View deskView, settingsView;  // the desktop and the settings home: the host (HomeActivity) adds them, a plain library has none
+    private boolean on;                   // between onResume and onPause
+    protected boolean recreating;         // onResume asked for recreate()
+    private Drawable wallBg;              // the wallpaper, decoded once
+    private String wallKey = "?";
     private TextView where;
     ExecutorService coverPool() { return pool; }
 
@@ -105,7 +111,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         super.onCreate(state);
         margin = Frames.edgeDp(this);
         String first = getIntent().getStringExtra(EXTRA_PAGE);
-        page = first != null ? first : Prefs.getStr(this, "lib_page", "shelf");
+        page = first != null ? first : firstPage();
         logBoard = new LogBoard(this);
         grid = "grid".equals(Prefs.getStr(this, "lib_view", "list"));
         // the library opens on the page it was left on (a folder inside the chosen ones), else on its home
@@ -160,9 +166,69 @@ public class LibraryActivity extends Activity implements Dock.Pages {
 
         dock = Dock.build(this, page);
         body = Ui.pageOf(this, bar, null, true, dock);
-        body.setPadding(Ui.dp(this, PAD), 0, Ui.dp(this, PAD), Frames.edge(this) - Frames.half(this));   // frames: the page margin from the left, right and bottom edge
+        pageRoot = (LinearLayout) ((View) body.getParent()).getParent();
+        body.setPadding(Ui.dp(this, PAD), Frames.edge(this) - Frames.half(this), Ui.dp(this, PAD), Frames.edge(this) - Frames.half(this));   // frames: the page margin from the left, right, top (the header) and bottom (the bar); a frame adds half a gap itself
         where = Ui.caption(body, "");
         buildTools();
+    }
+
+    /** The page shown first when the start names none. The host shows the desktop. */
+    protected String firstPage() {
+        return Prefs.getStr(this, "lib_page", "shelf");
+    }
+
+    /** The id of the page shown: ov, ck, st, home, reading, shelf or settings. */
+    protected final String pageId() {
+        return page;
+    }
+
+    /** The host adds its desktop: it takes the place of the scroll view while the page home is shown. */
+    protected final void attachDesk(View v) {
+        deskView = v;
+        addPage(v);
+    }
+
+    /** The host adds its settings home: the same. */
+    protected final void attachSettings(View v) {
+        settingsView = v;
+        addPage(v);
+    }
+
+    private void addPage(View v) {
+        v.setVisibility(View.GONE);
+        int i = pageRoot.indexOfChild((View) body.getParent());
+        pageRoot.addView(v, i + 1, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+    }
+
+    /** The page settings is asked for and the host has not added it yet: add it with attachSettings. */
+    protected void needSettings() { }
+
+    /** The desktop or the settings home has just been switched to in place: bring its content up to date. */
+    protected void pageShown(String id) { }
+
+    /** BACK on the first page of the library: a plain library closes, the host goes back to the desktop. */
+    protected void leave() {
+        finish();
+    }
+
+    private static boolean isDesk(String id) {
+        return id.equals("home") || id.equals("settings");
+    }
+
+    /** Which view fills the page area: the scroll view (the library pages), the desktop or the settings home. Visibility only, nothing is rebuilt. */
+    private void stage() {
+        boolean d = page.equals("home"), s = page.equals("settings");
+        if (s && settingsView == null) {
+            needSettings();
+            if (settingsView == null) { page = "shelf"; s = false; }
+        }
+        if (d && deskView == null) { page = "shelf"; d = false; }
+        ((View) body.getParent()).setVisibility(d || s ? View.GONE : View.VISIBLE);
+        if (deskView != null) deskView.setVisibility(d ? View.VISIBLE : View.GONE);
+        if (settingsView != null) settingsView.setVisibility(s ? View.VISIBLE : View.GONE);
+        if (tools != null) tools.setVisibility(d || s ? View.GONE : View.VISIBLE);   // the floating column belongs to the library pages
+        applyWall();
+        if (d || s) Dock.mark(dock, page);
     }
 
     /** One column at the bottom right: from the bottom up the page buttons (when there is something to scroll), grouping, sorting, list or grid. */
@@ -276,10 +342,11 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     @Override
     protected void onResume() {
         super.onResume();
-        if (margin != Frames.edgeDp(this)) { recreate(); return; }   // the page margin setting changed
+        on = true;
+        if (margin != Frames.edgeDp(this)) { recreating = true; recreate(); return; }   // the page margin setting changed
         Dock.refresh(this, dock);
-        applyWall();
         show();
+        if (isDesk(page)) return;   // the desktop and the settings home are looked after by the host
         new Thread(new Runnable() {
             @Override public void run() {
                 if (!ReadTime.syncApps(LibraryActivity.this)) return;
@@ -290,15 +357,20 @@ public class LibraryActivity extends Activity implements Dock.Pages {
         }).start();   // the screen time of the apps joins the reading time
     }
 
-    /** The desktop wallpaper behind the page when wall_lib is on (the page root is the parent of the scroll view). */
-    private void applyWall() {
-        View root = (View) ((View) body.getParent()).getParent();
-        Drawable d = Widgets.wallDrawable(this);
-        root.setBackground(d != null ? d : new ColorDrawable(Color.WHITE));
+    /** The wallpaper behind the page: always on the desktop, on the other pages when wall_lib is on, else white. It is decoded only when it changes. */
+    protected void applyWall() {
+        Drawable d = null;
+        if (page.equals("home") || "1".equals(Prefs.getStr(this, "wall_lib", "0"))) {
+            String k = Widgets.wallKey(this);
+            if (!k.equals(wallKey)) { wallKey = k; wallBg = Widgets.deskWall(this); }
+            d = wallBg;
+        }
+        pageRoot.setBackground(d != null ? d : new ColorDrawable(Color.WHITE));
     }
 
     @Override
     protected void onPause() {
+        on = false;
         Dock.noSwipe();
         super.onPause();
     }
@@ -320,9 +392,16 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     /** A button of the bottom bar: show that page. */
     @Override
     public void goPage(String id) {
+        openPage(id);
+    }
+
+    /** Shows page id: at once when this is on screen, else by the next onResume (a start with an extra, the home key). */
+    protected void openPage(String id) {
         page = id;
         if (isStats(id)) logBoard.setTab(statsIndex(id));   // also leaves a day or a book that is open
+        if (!on) return;
         show();
+        if (isDesk(id) && page.equals(id)) pageShown(id);
     }
 
     @Override
@@ -337,7 +416,7 @@ public class LibraryActivity extends Activity implements Dock.Pages {
             dir = LibStore.folderRels().contains(LibStore.rel(dir)) ? null : dir.getParentFile();
             show();
         } else {
-            finish();
+            leave();
         }
     }
 
@@ -482,6 +561,8 @@ public class LibraryActivity extends Activity implements Dock.Pages {
     }
 
     void show() {
+        stage();
+        if (isDesk(page)) return;
         gen++;
         // keep the caption (child 0), drop the old boards
         while (body.getChildCount() > 1) body.removeViewAt(1);

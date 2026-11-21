@@ -142,7 +142,7 @@ public class WallpaperActivity extends Activity {
         dir = d;
         boolean root = d.getPath().equals(KINDLE);
         LinearLayout body = Ui.page(this, root ? "Kindle" : d.getName(), null);
-        Ui.caption(body, shown(d.getPath()) + Ui.t(this, " · 为") + targetName() + Ui.t(this, "选择"));
+        Ui.caption(body, shown(d.getPath()) + Ui.t(this, " · 选择图片"));
         LinearLayout g = Ui.addGroup(body);
         File[] pics = d.isDirectory() ? Img.pics(d) : new File[0];
         if (pics.length > 0) addChoice(g, Ui.t(this, "使用此文件夹(随机,") + pics.length + Ui.t(this, " 张)"), d.getAbsolutePath());

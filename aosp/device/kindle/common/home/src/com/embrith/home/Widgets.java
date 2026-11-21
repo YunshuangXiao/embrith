@@ -52,11 +52,21 @@ public final class Widgets {
     /** The desktop wallpaper as a page background for the library and recent (null: the switch wall_lib is off, or the wallpaper is plain white). */
     public static Drawable wallDrawable(Activity a) {
         if (!"1".equals(Prefs.getStr(a, "wall_lib", "0"))) return null;
+        return deskWall(a);
+    }
+
+    /** The desktop wallpaper whatever wall_lib says (null = none). Decoding it takes time: keep it while wallKey stays the same. */
+    public static Drawable deskWall(Activity a) {
         String w = Img.resolve(a, "home");
         if (w.length() == 0) return null;
         DisplayMetrics dm = a.getResources().getDisplayMetrics();
         Bitmap b = Img.load(w, dm.widthPixels, dm.heightPixels, Img.fade(a, "home"));
         return b == null ? null : new BitmapDrawable(a.getResources(), b);
+    }
+
+    /** What the desktop wallpaper is now (the picture and its fade): deskWall has to be called again when it changes. */
+    public static String wallKey(Activity a) {
+        return Img.resolve(a, "home") + "|" + Img.fade(a, "home");
     }
 
     /** A black rounded border (the same as Ui.outline); fill = white inside (widgets), otherwise transparent (the app grid block). */

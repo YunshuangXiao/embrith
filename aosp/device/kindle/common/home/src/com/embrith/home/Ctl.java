@@ -70,6 +70,11 @@ public final class Ctl {
         }
     }
 
+    /** Declare how the screen change that follows is refreshed (ctl/refresh): mode is a2, fast, ui, partial, flashui, flashpartial or full, for the whole screen. The display side only reads it for 1.5 s. */
+    public static void refresh(String mode) {
+        put("refresh", System.currentTimeMillis() + " " + mode + " 0 0 0 0 0");
+    }
+
     /** Like put(), for a secret (a Wi-Fi password): the file is owner-only from the moment it exists; the Kindle side (root) reads it once and deletes it. */
     static void putSecret(String name, String value) {
         File tmp = new File(DIR, name + ".app");

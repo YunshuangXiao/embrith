@@ -74,6 +74,7 @@ struct conf {
     unsigned scroll_ms;               /* like fast_ms, for a big band declared UI by a swipe (ctl/turn u): frames closer than this are a scroll (black/white waveform, one merged refresh, gray clean-up when quiet) */
     unsigned flash_every, ui_pct;     /* every N page turns one full-screen flash (0 = never); a changed band up to ui_pct percent of the screen is a local (UI) update, a bigger one is a page update */
     int page_anim;                    /* 1 = the periodic full-screen page refresh is the driver's hardware swipe animation instead of a flash */
+    unsigned anim_img_pct;            /* a page turn between a picture page and a text page (one has at least this percent of mid-gray pixels, the other has not) gets no swipe animation, 0 = always animate */
     unsigned anim_steps, anim_dir;    /* swipe steps (1..60) and direction (0 down, 1 up, 2 left, 3 right): the direction of a next page, a previous page uses the opposite one (dir ^ 1) */
     int flash_only;                   /* 1 = compatibility mode: every change is shown with ONE flashing full-screen GC16 refresh once it is quiet */
     int page_wfm;                     /* waveform for larger partial updates and the settle refresh: 0 = GC16 (default), 1 = GL16, 2 = REAGL (KOReader "partial" on MTK) */
@@ -86,7 +87,7 @@ struct conf {
 static void conf_defaults(struct conf* c) {
     c->color = 0; c->contrast = 1.3; c->dither = 1; c->local_wfm = WFM_DU; c->invert = 0; c->gestures = 1;
     c->settle_ms = 200; c->fast_ms = 250; c->scroll_ms = 900;
-    c->flash_every = 6; c->ui_pct = 10; c->page_anim = 1; c->anim_steps = 12; c->anim_dir = 2; c->flash_only = 0; c->conf_ver = 0; c->sleep_min = 10; c->page_wfm = 0; c->white_at = 224; c->nextra = 0;
+    c->flash_every = 6; c->ui_pct = 10; c->page_anim = 1; c->anim_steps = 12; c->anim_img_pct = 20; c->anim_dir = 2; c->flash_only = 0; c->conf_ver = 0; c->sleep_min = 10; c->page_wfm = 0; c->white_at = 224; c->nextra = 0;
 }
 static const char* wfm_name(int w) { return w == WFM_A2 ? "a2" : w == WFM_AUTO ? "auto" : "du"; }
 
@@ -102,6 +103,7 @@ static int conf_known(struct conf* c, const char* key, const char* val) {
     else if (!strcmp(key, "FLASH_ONLY")) c->flash_only = atoi(val) != 0;
     else if (!strcmp(key, "PAGE_ANIM")) c->page_anim = atoi(val) != 0;
     else if (!strcmp(key, "ANIM_STEPS")) { int v = atoi(val); c->anim_steps = v < 1 ? 1 : v > 60 ? 60 : (unsigned)v; }
+    else if (!strcmp(key, "ANIM_IMG_PCT")) { int v = atoi(val); c->anim_img_pct = v < 0 ? 0 : v > 100 ? 100 : (unsigned)v; }
     else if (!strcmp(key, "ANIM_DIR")) { int v = atoi(val); c->anim_dir = v < 0 ? 0 : v > 3 ? 3 : (unsigned)v; }
     else if (!strcmp(key, "UI_PCT")) { int v = atoi(val); c->ui_pct = v < 2 ? 2 : v > 50 ? 50 : (unsigned)v; }
     else if (!strcmp(key, "PAGE_PCT")) { /* retired, replaced by UI_PCT */ }
@@ -139,9 +141,9 @@ static void conf_save(const struct conf* c, const char* path, mode_t mode) {
     char tmp[300]; snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE* f = fopen(tmp, "w");
     if (!f) return;
-    fprintf(f, "CONTRAST=%.1f\nDITHER=%d\nLOCAL_WFM=%s\nINVERT=%d\nGESTURES=%d\nSETTLE_MS=%u\nFAST_MS=%u\nSCROLL_MS=%u\nFLASH_EVERY=%u\nUI_PCT=%u\nFLASH_ONLY=%d\nPAGE_ANIM=%d\nANIM_STEPS=%u\nANIM_DIR=%u\nPAGE_WFM=%s\nSLEEP_MIN=%u\nWHITE_AT=%u\nCONF_VER=2\n",
+    fprintf(f, "CONTRAST=%.1f\nDITHER=%d\nLOCAL_WFM=%s\nINVERT=%d\nGESTURES=%d\nSETTLE_MS=%u\nFAST_MS=%u\nSCROLL_MS=%u\nFLASH_EVERY=%u\nUI_PCT=%u\nFLASH_ONLY=%d\nPAGE_ANIM=%d\nANIM_STEPS=%u\nANIM_IMG_PCT=%u\nANIM_DIR=%u\nPAGE_WFM=%s\nSLEEP_MIN=%u\nWHITE_AT=%u\nCONF_VER=2\n",
             c->contrast, c->dither, wfm_name(c->local_wfm), c->invert, c->gestures, c->settle_ms, c->fast_ms, c->scroll_ms, c->flash_every, c->ui_pct, c->flash_only,
-            c->page_anim, c->anim_steps, c->anim_dir,
+            c->page_anim, c->anim_steps, c->anim_img_pct, c->anim_dir,
             c->page_wfm == 2 ? "reagl" : c->page_wfm ? "gl16" : "gc16", c->sleep_min, c->white_at);
     fprintf(f, "COLOR=%d\n", c->color);
     for (int k = 0; k < c->nextra; k++) fprintf(f, "%s\n", c->extra[k]);
@@ -359,6 +361,18 @@ static void count_changed(const uint8_t* src, const struct rect* r, unsigned lon
     *chg = c; *gchg = g;
 }
 
+/* the share of mid-gray pixels (percent) in a rect of a picture, from every 4th pixel of every 4th row: a text page has a few (the edges of
+ * the letters), a picture page has many. Call before track(), g_prev is the picture the panel shows now. */
+static int mid_pct(const uint8_t* src, const struct rect* r) {
+    if (!src) return 0;
+    unsigned long n = 0, g = 0;
+    for (unsigned y = r->y; y < r->y + r->h; y += 4) {
+        const uint8_t* s = src + (size_t)y * g_panel_w;
+        for (unsigned x = r->x; x < r->x + r->w; x += 4) { n++; uint8_t v = lut[s[x]]; if (v > 40 && v < 215) g++; }
+    }
+    return n ? (int)(g * 100 / n) : 0;
+}
+
 /* ---------------------------------------------------------------- refresh */
 /* fbink behaves differently between firmware versions (after the 5.20.1 update most invocations with -W / a region / -q died with
  * SIGSEGV while a plain "fbink -s" still worked). So there is a list of ways to ask for a refresh, from the most capable to the most
@@ -501,6 +515,7 @@ static unsigned kbd_height(const char* path) {
 }
 
 /* Last touch class as kgest or the system UI declared it (ctl/turn: "<wall ms> n|p|u|c|N|P"): 'n' next page, 'p' previous page (a guess from the touch), 'N' 'P' the same declared by the system UI (a page turn whatever the picture looks like), 'u' UI (not a page turn), 'c' tap in the middle third (a reader shows or hides its bars), 0 when there is no fresh hint. */
+
 static char turn_hint(const char* path) {
     FILE* f = fopen(path, "r");
     if (!f) return 0;
@@ -1047,7 +1062,13 @@ int main(int argc, char** argv) {
             int page = big && !declared_ui && (th || (t - last_refresh) >= cf.fast_ms);   /* no hint and refreshing fast = scrolling: not a page */
             if (big) printf("class: %s maxband=%llu%% nb=%d hint=%c overlay=%d kbd=%u\n", page ? "page" : declared_ui ? "ui" : "scroll", maxband * 100 / screen, nb, th ? th : '-', in_ov, kb_on ? kbd_h : 0);
             if (page) {
-                int turned = (th == 'n' || th == 'p') && cf.page_anim && !g_noanim;
+                int kind_change = 0;   /* picture page <-> text page: the swipe animation is skipped, the new page is refreshed in place */
+                if (cf.anim_img_pct > 0 && (th == 'n' || th == 'p') && g_prev) {
+                    int before = mid_pct(g_prev, &r), after = mid_pct(sdata, &r);
+                    kind_change = (before >= (int)cf.anim_img_pct) != (after >= (int)cf.anim_img_pct);
+                    printf("kind: mid=%d%%->%d%% change=%d\n", before, after, kind_change);
+                }
+                int turned = (th == 'n' || th == 'p') && cf.page_anim && !g_noanim && !kind_change;
                 int pg = t - last_page >= 800;       /* a page turn can arrive as several frames: count at most one per 800 ms */
                 int flash = (!cf.page_anim || g_noanim) && cf.flash_every > 0 && pg && pages + 1 >= cf.flash_every;
                 const struct rect* pr = flash ? &full : &r;
@@ -1066,7 +1087,9 @@ int main(int argc, char** argv) {
                 continue;
             }
             int fast = (t - last_refresh) < ((th == 'u' && big && !kb_on) ? cf.scroll_ms : cf.fast_ms);   /* a swipe in a UI screen (settings): every frame is a scroll step, not a new gray page */
-            if (fast && nb > 1 && !kb_on) { bands[0] = r; nb = 1; }     /* scrolling: one refresh for the whole changed area instead of one fbink process per band */
+            /* scrolling, or a big change of a UI screen (not an overlay): one refresh for the whole changed area instead of one update per band.
+             * Several gray updates queue up in the driver and take as many times as long as one. */
+            if ((fast || (declared_ui && !in_ov && big)) && nb > 1 && !kb_on) { bands[0] = r; nb = 1; }
             for (int i = 0, n0 = nb; kb_on && i < n0 && nb < MAXBANDS + 3; i++)     /* a band across the top of the keyboard: one band above it, one inside */
                 if (bands[i].y + 8 < kb_y && bands[i].y + bands[i].h > kb_y + 8) {
                     bands[nb] = bands[i]; bands[nb].y = kb_y; bands[nb].h = bands[i].y + bands[i].h - kb_y;

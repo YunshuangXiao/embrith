@@ -91,7 +91,6 @@ public final class English {
         p("恢复默认手势", "Restore default gestures");
         p("设了动作后, 贴边起滑的触摸不再传给应用; 没设动作的边缘不受影响.", "Once an action is set, a touch that starts at that edge is no longer passed to the app; edges without an action are not affected.");
         p("角落轻点和双击不拦截触摸, 应用同时也会收到. 一次双击会先触发一次轻点的动作.", "Corner taps and double taps do not block the touch, the app receives it too. A double tap first runs the action of a tap.");
-        p("双指上下滑(整屏)只在左右半屏的设置为无时使用.", "Two-finger swipe (whole screen) is used only when the left and right half settings are none.");
         p("设置首页", "Settings home");
         p("右边缘", "Right edge");
         p("左边缘", "Left edge");
@@ -115,8 +114,6 @@ public final class English {
         p("色温最冷", "Coolest");
         p("切换应用(最近任务)", "Switch app (recent tasks)");
         p("双指手势", "Two-finger gestures");
-        p("双指上滑(整屏)", "Two-finger swipe up (whole screen)");
-        p("双指下滑(整屏)", "Two-finger swipe down (whole screen)");
         p("双指向右上滑", "Two-finger swipe to the upper right");
         p("双指向左上滑", "Two-finger swipe to the upper left");
         p("双指向右下滑", "Two-finger swipe to the lower right");
@@ -563,8 +560,7 @@ public final class English {
         p("选了文件夹时,桌面壁纸按这个间隔随机换一张", "When a folder is chosen, the desktop wallpaper switches to a random picture at this interval");
         p("褪色与切换", "Fade and switching");
         p("褪色对桌面壁纸和锁屏图片分别设置.选了文件夹时:锁屏图片每次锁屏随机换一张;桌面壁纸按\"文件夹切换\"的间隔随机换.", "Fade is set separately for the desktop wallpaper and the lock screen picture. When a folder is chosen: the lock screen picture changes randomly each time the screen locks; the desktop wallpaper changes randomly at the \"Folder switching\" interval.");
-        p(" \u00b7 为", " - for "); // fragment
-        p("选择", ", choose");
+        p(" \u00b7 选择图片", " - choose a picture"); // fragment
         p("使用此文件夹(随机,", "Use this folder (random, "); // fragment
         p(" 张)", " pictures)"); // fragment
         p("这个文件夹打不开(或者 Kindle 的存储没有接入)", "This folder cannot be opened (or the Kindle storage is not attached)");
@@ -816,6 +812,40 @@ public final class English {
         p("正在读取书籍信息...", "Reading book information...");
         p("只影响网格模式. 封面始终是 3:4, 设置每行显示和每屏行数后, 间距自动调整. 文件夹的封面显示文件夹名.", "Grid mode only. Covers are always 3:4; the spacing adjusts automatically for the columns and rows you set. A folder cover shows the folder name.");
         p("Wi-Fi 和蓝牙属于 Kindle. 这里可以开关, 也可以在已保存的网络和已配对的蓝牙设备之间切换; 新蓝牙设备请先用 Kindle 自己的设置配对一次.", "Wi-Fi and Bluetooth belong to Kindle. You can switch them on or off here and switch between saved networks and paired Bluetooth devices. Pair new Bluetooth devices once in the Kindle settings first.");
+        // ---- EmbrithIME (edit row)
+        p("选择", "Select");
+        p("全选", "Select all");
+        p("复制", "Copy");
+        p("剪切", "Cut");
+        p("粘贴", "Paste");
+
+        // ---- MenuActivity (txt chapters)
+        p("TXT 章节", "TXT chapters");
+        p("章节正则", "Chapter regex");
+        p("自己写一个正则式, 书里的每一行(去掉行首行尾的空白)只要能匹配上就算章节标题; 对不上或少于两章时用自动检测. 改了以后重新打开书生效, 阅读位置可能偏移.", "Write a regular expression of your own: every line of the book (blanks at both ends removed) that matches it counts as a chapter title. If nothing matches or there are fewer than two chapters, the automatic detection is used. It takes effect when the book is opened again; the reading position may shift.");
+        p("例子", "Example");
+        p("自定义", "Custom");
+        p("留空 = 自动检测", "Empty = automatic detection");
+        p("TXT 章节正则", "TXT chapter regex");
+        p("正则式不正确: ", "Invalid regular expression: "); // fragment
+        p("恢复自动", "Reset to auto");
+
+        // ---- SlotOrderActivity
+        p("上方是整个区域 (缩小). 在下方选一个组件, 再点预览里的格子, 组件的左上角放在点的格子上; 点预览里的组件可以选中它, 再点别的格子即移动. 没被覆盖的格子保持空白", "The whole area is above (scaled down). Pick a widget below, then tap a cell in the preview: the top left corner of the widget goes on that cell. Tap a widget in the preview to select it, then tap another cell to move it. Cells that are not covered stay empty");
+        p("没有待放组件. 在下方添加组件", "No widgets waiting to be placed. Add widgets below");
+        p("待放组件 (点一下选中, 再点预览里的格子)", "Waiting to be placed (tap to select, then tap a cell in the preview)");
+        p("添加组件 (加进来先在待放区, 选中后点预览放置)", "Add widgets (they start in the waiting area; select one, then tap the preview to place it)");
+        p("放不下: 和其他组件重叠", "Does not fit: overlaps another widget");
+        p("类型和内容", "Type and content");
+        p("放回待放区", "Put back in the waiting area");
+        p("组件太多了", "Too many widgets");
+
+        // ---- Slots (sizes and types)
+        p("屏幕时间: 单个应用", "Screen time: one app");
+        p("通栏细条", "Thin full-width strip");
+        p("整行宽, 1 格高", "The whole row wide, 1 cell high");
+        p("四分之一行宽, 2 格高", "A quarter of the row wide, 2 cells high");
+
         // ---- punctuation only
         p("-", "-"); // fragment
         p("+", "+"); // fragment

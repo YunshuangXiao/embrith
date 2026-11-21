@@ -28,41 +28,48 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - Newer web engine (Chromium 119).
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115541.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115651.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/net_mtp.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_system_advanced.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/usb_connected.png" width="31%">
 </p>
 
 ### Launcher, Library and Reading
 
-- Minimalist launcher: app grid, widgets (daily / weekly screen time, image display, text display, app shortcuts, quick buttons), and a Kindle-style status bar.
+- Minimalist launcher: app grid, widgets (daily / weekly screen time, image display, text display, clock, app shortcuts, quick buttons), and a Kindle-style status bar.
+- Clock widget: several dial styles (plain, numbers 1-12, roman, minimal, dots) and a digital clock, with a choice of time zone.
 - Bottom bar pages can be chosen and reordered: Stats / Check-in / Overview / Home / Reading / Library / Settings.
 - Library: only the folders you choose are shown; cover grid or list view, columns per row / rows per screen, book title shown when there is no cover, sorting (including reverse order and folders first) and grouping, clear recent history, clear cover cache.
 - Reading page: shows the book you are reading and recent books; tap a cover to continue reading.
 - Home and settings widgets are laid out in slots: several sizes (full screen, full-width strip, half-screen column, half-width and others), with the count of each size and their order adjustable; quick-button widgets are available.
 - Supported formats: txt, epub, mobi, azw, azw3, kfx (DRM-free only); comics in cbz and cbt (including epub / mobi / azw3 books made of image pages). cbr and cb7 files are listed in the library but cannot be opened yet; convert them to cbz first. PDF is not supported.
 - Chapters: epub books are split by their table of contents (including anchors inside one file), falling back to heading lines in the text when the table is too short; txt chapter headings are detected automatically (Chinese chapter words, chapter / part, numbered lines, layout), or set your own regular expression in Settings > Library.
+- Reading: blanks at the start of a paragraph no longer add up; the indent set in the settings is used instead.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120119.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120156.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120204.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/home_slots.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/overview.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/library_folders.png" width="31%">
 </p>
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115525.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115531.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_library.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_library_txt.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/library_folder_tools.png" width="31%">
 </p>
 
 ### Personalization
 
-- Bottom bar pages and their order, and the order of home widgets, can be adjusted.
+- Bottom bar pages and their order can be adjusted. The widget areas of the home and settings home pages are laid out in the slot editor: pick a widget, then tap a cell in the preview; tap a placed widget to move it.
 - Library location, recent-reading display, page layout and sort order can be set separately.
-- Home wallpaper and lock screen image: plain white, a single image from Kindle, or a random image from the Embrith wallpaper folder; fade level and folder switching time are adjustable.
+- Home wallpaper and lock screen image: plain white, a single image from Kindle, or a random image from the Embrith wallpaper folder; fade level and folder switching time are adjustable; the picture list shows small previews.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112612.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115444.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115140.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/widget_slot_editor.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/widget_slot_editor_pending.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_wallpaper.png" width="31%">
+</p>
+<p>
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_personalization.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_home_widgets.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_personalization_bottom_bar.png" width="31%">
 </p>
 
 ### Reading Stats and Check-in
@@ -72,21 +79,22 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - Stats: monthly calendar heat map, tap a day to see time per app, and reading time for the week / month / year.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120123.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120135.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120151.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/stats_calendar.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/stats_day_detail.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/checkin.png" width="31%">
 </p>
 
 ### Touch and Gestures
 
 - Fixed gestures: swipe down from the right half of the top edge = pull-down panel; swipe up from the left half of the bottom edge = Home; swipe up from the right half of the bottom edge = Back; press and hold the top-left corner for 3 seconds = restart / exit menu (restart Embrith, exit Embrith, restart Kindle; Embrith still exits if Android does not answer); press two opposite corners at the same time = screenshot.
-- Configurable gestures: one-finger and two-finger taps and swipes. Actions include refresh screen (clear ghosting), invert colors, Back, Home, frontlight on/off, adjust frontlight brightness, adjust color temperature, Wi-Fi toggle, open status bar, open settings, sleep, screenshot, previous page, next page, frontlight to maximum, frontlight to minimum, warmest, coolest, and switch app (recent tasks).
+- Configurable gestures: one-finger and two-finger taps and swipes. Gestures and buttons share one set of actions: refresh screen (clear ghosting), invert colors, Back, Home, frontlight (toggle / set / up / down), color temperature (set / warmer / cooler), Wi-Fi toggle, open status bar, open settings, sleep, screenshot, previous page, next page, switch app (recent tasks) and more. Swipe gestures also offer adjust frontlight brightness / adjust color temperature, for a two-finger swipe up or down (left or right half) and a one-finger swipe up or down along the left or right edge; the level follows the fingers while they move, and the amount grows with the distance.
 - One-tap restore of the default gestures.
-- Quick buttons (pull-down panel and settings home widgets): choose actions such as frontlight (set / up / down / toggle), warmth, Wi-Fi, Bluetooth, airplane mode, invert colors, refresh, screenshot, sleep, restart and eject USB; the floating page buttons can be dragged to a new place.
+- Quick buttons (the custom buttons of the pull-down panel and the settings home widgets share one set of actions): choose actions such as frontlight (set / up / down / toggle), warmth, Wi-Fi, Bluetooth, airplane mode, invert colors, refresh, screenshot, sleep, restart and eject USB; actions with a value take a number, and toggles show their state; the floating page buttons can be dragged to a new place.
 - Soft keyboard: an edit row (select, select all, copy, cut, paste).
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115428.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_gestures.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/pulldown_panel.png" width="31%">
 </p>
 
 ### Display and Refresh
@@ -97,8 +105,8 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - Partial refresh, automatic full-screen refresh, configurable page-turn animation step, page-turn animation can be disabled for specific apps, full-screen redraw.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112643.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112656.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_display.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_display_effects.png" width="31%">
 </p>
 
 ### Networking and Connectivity
@@ -109,8 +117,8 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - MTP connection; eject the connection to resume normal use. While MTP is connected, Embrith cannot read Kindle data.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112625.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112629.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_network.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/network_ssh.png" width="31%">
 </p>
 
 ### Power and System
@@ -120,12 +128,8 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - Advanced and compatibility: newer WebView, dex2oat optimization, shared folders, developer mode.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112618.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115548.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115558.png" width="31%">
-</p>
-<p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115609.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_power.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/en/settings_system.png" width="31%">
 </p>
 
 ### Reliability
@@ -134,10 +138,6 @@ Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E 
 - Local update: verified update and forced overwrite update.
 - Online update: download the latest release from GitHub.
 - Log reports: `embrith.sh report [minutes]` or Settings > System > Generate Log. Logs can be viewed and deleted from the list. Logs are written to RAM by default (to flash only when `DEV_MODE=1`).
-
-<p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115633.png" width="31%">
-</p>
 
 ### Other
 

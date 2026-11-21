@@ -27,40 +27,48 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 支持新版网页内核 (Chromium 119).
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115541.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115651.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/net_mtp.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_system.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_shared_folders.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/net_mtp.png" width="31%">
 </p>
 
 ### 桌面, 书库与阅读
 
-- 简洁桌面: 应用网格, 组件 (屏幕时间 日 / 周, 图片展示, 文字展示, 应用快捷方式, 快捷按钮), Kindle 原生风格状态栏. 桌面和设置首页上方的组件区按槽位排布, 提供整屏, 通栏, 半屏竖条, 半宽等多种尺寸, 可设置各尺寸的个数与摆放顺序.
+- 简洁桌面: 应用网格, 组件 (屏幕时间 日 / 周, 图片展示, 文字展示, 时钟, 应用快捷方式, 快捷按钮), Kindle 原生风格状态栏. 桌面和设置首页上方的组件区按槽位排布, 提供整屏, 通栏, 半屏竖条, 半宽等多种尺寸, 可设置各尺寸的个数与摆放顺序.
+- 时钟组件: 多种表盘 (简约刻度, 数字 1-12, 罗马数字, 极简, 圆点刻度) 和数字时钟, 可选时区.
 - 底部栏可自选页面并排序: 统计 / 打卡 / 概览 / 主页 / 阅读 / 书库 / 设置.
 - 书库: 选择书籍文件夹后只显示这些文件夹, 支持封面网格或列表, 每行列数 / 每屏行数, 无封面时显示书名, 排序 (含倒序, 文件夹在前) 与分组, 清空最近记录, 清除封面缓存.
 - 阅读页: 显示正在阅读与最近阅读, 点击封面继续阅读.
 - 支持的格式: txt, epub, mobi, azw, azw3, kfx (不带 DRM); 漫画 cbz, cbt (含由图片页组成的 epub / mobi / azw3). cbr, cb7 会在书库中列出, 但暂不支持阅读, 需先转成 cbz. 不支持 pdf.
 - 章节目录: epub 按目录 (含同一文件内的锚点) 切分章节, 目录不足时按正文标题行识别; txt 自动识别章节标题 (中文章节词, 英文 chapter / part 等, 编号行, 版面), 也可在 设置 > 书库 中填写自定义正则.
+- 阅读: 段首的空格不再叠加, 统一按设置里的首行缩进显示.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120119.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120156.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120204.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/home_slots.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/overview.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/library_folders.png" width="31%">
 </p>
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115525.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115531.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_library.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_library_sort.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/reader_comic.png" width="31%">
 </p>
 
 ### 个性化
 
-- 底部栏页面与顺序, 桌面组件顺序均可调整.
+- 底部栏页面与顺序可调整; 桌面和设置首页的组件区在槽位编辑里摆放: 选一个组件, 再点预览里的格子放置, 点已放的组件可以移动.
 - 书库位置, 最近阅读显示, 页面布局, 排序方式等可单独设置.
-- 桌面壁纸与锁屏图片: 纯白, 从 Kindle 选择单张图片, 或使用 Embrith 壁纸文件夹随机切换; 可设置褪色度和文件夹切换时机.
+- 桌面壁纸与锁屏图片: 纯白, 从 Kindle 选择单张图片, 或使用 Embrith 壁纸文件夹随机切换; 可设置褪色度和文件夹切换时机; 选图列表显示缩略预览.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112612.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115444.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115140.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/widget_slot_editor.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/widget_slot_selected.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_wallpaper.png" width="31%">
+</p>
+<p>
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/wallpaper_pick_picture.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/home_widgets_wallpaper.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_home_widgets.png" width="31%">
 </p>
 
 ### 阅读统计与打卡
@@ -70,21 +78,22 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 统计: 按月日历热力图, 点选日期查看当天各应用时长, 本周 / 本月 / 全年阅读时长.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120123.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120135.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_120151.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/stats_calendar.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/stats_day_detail.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/checkin.png" width="31%">
 </p>
 
 ### 触摸与手势
 
 - 固定手势: 顶边右半下滑 = 下拉面板, 底边左半上滑 = 回到桌面, 底边右半上滑 = 返回, 按住左上角 3 秒 = 弹出 重启 / 退出菜单 (重启 Embrith, 退出 Embrith, 重启 Kindle; Android 无响应时仍会退出), 两指同时按对角 = 截图.
-- 可配置手势: 单指 / 双指的点按与滑动, 动作包括 刷新屏幕(去残影), 反色, 返回, 回到桌面, 前光开/关, 调节前光亮度, 调节色温, Wi-Fi 开关, 打开状态栏, 打开设置, 休眠, 截图, 上一页, 下一页, 前光最亮, 前光关到最暗, 色温最暖, 色温最冷, 切换应用(最近任务).
+- 可配置手势: 单指 / 双指的点按与滑动, 动作与快捷按钮使用同一套选择: 刷新屏幕(去残影), 反色, 返回, 回到桌面, 前光 (开关 / 设为 / 调亮 / 调暗), 色温 (设为 / 调暖 / 调冷), Wi-Fi 开关, 打开状态栏, 打开设置, 休眠, 截图, 上一页, 下一页, 切换应用(最近任务) 等. 滑动类手势另有 调节前光亮度 / 调节色温, 可用于双指上下滑 (左半屏, 右半屏) 和单指沿左右边缘上下滑, 滑动过程中实时变化, 变化量随滑动距离增大.
 - 一键恢复默认手势.
-- 快捷按钮 (下拉面板和设置首页组件): 前光 (设为 / 调亮 / 调暗 / 开关), 色温, Wi-Fi, 蓝牙, 飞行模式, 反色, 刷新, 截图, 休眠, 重启, 弹出 USB 等动作可自选; 页面悬浮按钮的位置可拖动调整.
+- 快捷按钮 (下拉面板的自定义按钮和设置首页组件共用同一套动作): 前光 (设为 / 调亮 / 调暗 / 开关), 色温, Wi-Fi, 蓝牙, 飞行模式, 反色, 刷新, 截图, 休眠, 重启, 弹出 USB 等动作可自选, 带数值的动作可设数值, 开关类按钮显示当前状态; 页面悬浮按钮的位置可拖动调整.
 - 软键盘: 增加编辑行 (选择, 全选, 复制, 剪切, 粘贴).
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115428.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_gestures.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/widget_text_edit_keyboard.png" width="31%">
 </p>
 
 ### 显示与刷新
@@ -95,8 +104,8 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 局部刷新, 自动全屏刷新, 自定义翻页动画步长, 可为指定应用关闭翻页动画, 整屏重绘.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112643.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112656.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_display.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_display_effects.png" width="31%">
 </p>
 
 ### 网络与连接
@@ -107,8 +116,8 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 支持 MTP 连接, 弹出连接即可恢复使用. MTP 连接期间, Embrith 读不到 Kindle 数据.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112625.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112629.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_network.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/network_ssh.png" width="31%">
 </p>
 
 ### 电源与系统
@@ -118,12 +127,12 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 高级与兼容性: 新版 WebView, dex2oat 优化, 共享文件夹, 开发者模式.
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_112618.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115548.png" width="31%">
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115558.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_power.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_about.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_timezone.png" width="31%">
 </p>
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115609.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_language.png" width="31%">
 </p>
 
 ### 可靠性
@@ -134,7 +143,7 @@ Embrith · 余烬 | Kindle 定制安卓系统
 - 日志报告: `embrith.sh report [分钟数]` 或 设置 > 系统 > 生成日志, 日志可在列表中查看与删除; 日志默认写内存 (DEV_MODE=1 才写闪存).
 
 <p>
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/screenshot_20261120_115633.png" width="31%">
+<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/shots/cn/settings_logs.png" width="31%">
 </p>
 
 ### 其他
