@@ -34,6 +34,8 @@ final class ControlPanel {
     private final Picker picker;    // shows the list over the panel; null: the list is a page of its own (NetPickActivity)
     private final Handler handler = new Handler(Looper.getMainLooper());
     private CircleButton qPlane, qWifi, qBt, qInvert;
+    private final CircleButton[] qCustom = new CircleButton[2];   // the custom buttons (null: none)
+    private final String[] customId = new String[2];
     private BarView flBar, amberBar;
     private int lastFl = -1, lastAmber = -1;
     private int autoTick;
@@ -80,6 +82,7 @@ final class ControlPanel {
         if (qBt != null) { qBt.setOn("1".equals(b)); qBt.setOff("0".equals(b)); }
         if (qPlane != null) qPlane.setOn("0".equals(w) && "0".equals(b));
         if (qInvert != null) qInvert.setOn("1".equals(Ctl.get("INVERT", "0")));
+        for (int i = 0; i < qCustom.length; i++) if (qCustom[i] != null) QuickActions.setState(qCustom[i], customId[i]);   // only the toggles have a state
     }
 
     /** The radios answer slowly: look again after a few seconds. */
@@ -138,7 +141,7 @@ final class ControlPanel {
             @Override public boolean onLongClick(View v) { pickList("bt"); return true; }
         });
         qInvert = circle(Icons.INVERT, new View.OnClickListener() {
-            @Override public void onClick(View v) { run("invert"); }
+            @Override public void onClick(View v) { run("invert", ""); }
         });
         t.addView(pair(qPlane, qWifi));
         LinearLayout.LayoutParams second = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -220,13 +223,18 @@ final class ControlPanel {
         col.setOrientation(LinearLayout.VERTICAL);
         for (int i = 0; i < 2; i++) {
             final String id = Prefs.getStr(c, "hb" + (i + 1), HB_DEF[i]);
+            final String arg = Prefs.getStr(c, "hb" + (i + 1) + "_arg", "");
             View v;
-            if ("none".equals(id)) {
+            if (Actions.find(id) == null) {   // none (or an id the table does not know)
+                qCustom[i] = null;
                 v = new View(c);
             } else {
-                CircleButton cb = circle(Icons.forId(id), new View.OnClickListener() {
-                    @Override public void onClick(View x) { run(id); }
+                CircleButton cb = circle(QuickActions.icon(id), new View.OnClickListener() {
+                    @Override public void onClick(View x) { run(id, arg); }
                 });
+                QuickActions.setState(cb, id);
+                qCustom[i] = cb;
+                customId[i] = id;
                 cb.setSquare(true);   // custom buttons: square frame; the fixed buttons stay round
                 v = cb;
             }
@@ -244,9 +252,9 @@ final class ControlPanel {
         later();
     }
 
-    /** The custom buttons: the same actions as the pull-down status bar; the panel stays open unless the action leaves the page. */
-    private void run(String id) {
-        QuickActions.run(c, id, leave);
+    /** The custom buttons: the same actions (and arguments) as the button widgets; the panel stays open unless the action leaves the page. */
+    private void run(String id, String arg) {
+        Actions.run(c, id, arg, leave);
         later();
         update();
     }

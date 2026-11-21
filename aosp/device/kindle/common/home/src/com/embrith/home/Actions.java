@@ -19,6 +19,9 @@ import android.content.Intent;
  */
 final class Actions {
     static final int HOST = 0, APP = 1;
+    /** Where an action can be chosen (a bit mask): BTN = a button, TAP = a gesture without swipe steps (tap, hold, corner, ...), SWP = a swipe gesture that
+     *  gives steps (the *_adjust actions follow the distance of the swipe; the levels set / up / down do not belong there). */
+    static final int BTN = 1, TAP = 2, SWP = 4, ALL_KINDS = BTN | TAP | SWP;
     /** The sub-menus. */
     static final String[] CATS = { "屏幕与前光", "网络", "电源与系统", "导航与应用" };
     private static final int SCREEN = 0, NET = 1, POWER = 2, NAV = 3;
@@ -28,8 +31,14 @@ final class Actions {
         final int cat, target, icon;
         final boolean leave;       // the action leaves the page: the floating panel is closed first
         final String[] opts;       // the values of the argument (null = no argument)
+        final int scope;           // BTN, TAP and SWP bits: where the action can be chosen
 
         Def(String id, String name, int cat, int target, int icon, boolean leave, String paramTitle, String[] opts) {
+            this(id, name, cat, target, icon, leave, paramTitle, opts, ALL_KINDS);
+        }
+
+        Def(String id, String name, int cat, int target, int icon, boolean leave, String paramTitle, String[] opts, int scope) {
+            this.scope = scope;
             this.id = id;
             this.name = name;
             this.cat = cat;
@@ -48,22 +57,27 @@ final class Actions {
         return new Def(id, name, cat, target, icon, false, null, null);
     }
 
+    /** An action that only gestures offer: kgest runs it (keys, steps of a swipe). */
+    private static Def g(String id, String name, int cat, int icon, int scope) {
+        return new Def(id, name, cat, APP, icon, false, null, null, scope);
+    }
+
     static final Def[] ALL = {
         d("refresh", "刷新屏幕", SCREEN, HOST, Icons.REFRESH),
         d("invert", "反色", SCREEN, APP, Icons.INVERT),
         d("light_toggle", "开关前光", SCREEN, HOST, Icons.SUN),
-        new Def("light_set", "前光设为", SCREEN, HOST, Icons.SUN, false, "前光亮度 (0-24)", LEVELS),
-        new Def("light_inc", "前光调亮", SCREEN, HOST, Icons.SUN, false, "每次调亮", STEPS),
-        new Def("light_dec", "前光调暗", SCREEN, HOST, Icons.SUN, false, "每次调暗", STEPS),
-        new Def("warm_set", "色温设为", SCREEN, HOST, Icons.THERMOMETER, false, "色温 (0-24)", LEVELS),
-        new Def("warm_inc", "色温调暖", SCREEN, HOST, Icons.THERMOMETER, false, "每次调暖", STEPS),
-        new Def("warm_dec", "色温调冷", SCREEN, HOST, Icons.THERMOMETER, false, "每次调冷", STEPS),
+        new Def("light_set", "前光设为", SCREEN, HOST, Icons.SUN, false, "前光亮度 (0-24)", LEVELS, BTN | TAP),
+        new Def("light_inc", "前光调亮", SCREEN, HOST, Icons.SUN, false, "每次调亮", STEPS, BTN | TAP),
+        new Def("light_dec", "前光调暗", SCREEN, HOST, Icons.SUN, false, "每次调暗", STEPS, BTN | TAP),
+        new Def("warm_set", "色温设为", SCREEN, HOST, Icons.THERMOMETER, false, "色温 (0-24)", LEVELS, BTN | TAP),
+        new Def("warm_inc", "色温调暖", SCREEN, HOST, Icons.THERMOMETER, false, "每次调暖", STEPS, BTN | TAP),
+        new Def("warm_dec", "色温调冷", SCREEN, HOST, Icons.THERMOMETER, false, "每次调冷", STEPS, BTN | TAP),
         d("screenshot", "截图", SCREEN, HOST, Icons.MONITOR),
         d("wifi_toggle", "Wi-Fi 开/关", NET, HOST, Icons.WIFI),
         d("wifi_on", "打开 Wi-Fi", NET, HOST, Icons.WIFI),
         d("wifi_off", "关闭 Wi-Fi", NET, HOST, Icons.WIFI),
         d("bt_toggle", "蓝牙", NET, HOST, Icons.BT),
-        d("airplane", "飞行模式", NET, APP, Icons.PLANE),
+        new Def("airplane", "飞行模式", NET, APP, Icons.PLANE, false, null, null, BTN),
         d("sleep", "休眠", POWER, HOST, Icons.LOCK),
         d("restart_app", "重启 Embrith", POWER, HOST, Icons.REFRESH),
         d("reboot", "重启 Kindle", POWER, HOST, Icons.EXIT),
@@ -72,11 +86,18 @@ final class Actions {
         new Def("exit_app", "退出 Embrith", POWER, HOST, Icons.EXIT, true, null, null),
         new Def("home", "桌面", NAV, APP, Icons.HOME, true, null, null),
         d("open_settings", "打开设置", NAV, APP, Icons.SETTINGS),
+        g("back", "返回", NAV, Icons.CHEVRON_LEFT, TAP | SWP),
+        g("page_next", "下一页", NAV, Icons.RIGHT, TAP | SWP),
+        g("page_prev", "上一页", NAV, Icons.CHEVRON_LEFT, TAP | SWP),
+        g("app_switch", "切换应用(最近任务)", NAV, Icons.OVERVIEW, TAP | SWP),
+        g("statusbar", "下拉状态栏", NAV, Icons.DOWN, TAP | SWP),
+        g("light_adjust", "调节前光亮度", SCREEN, Icons.SUN, SWP),
+        g("warm_adjust", "调节色温", SCREEN, Icons.THERMOMETER, SWP),
     };
 
     private static final String[][] LEGACY = {
         { "wifi", "wifi_toggle" }, { "bt", "bt_toggle" }, { "plane", "airplane" }, { "lock", "sleep" }, { "clear", "refresh" },
-        { "light", "light_toggle" }, { "exit", "exit_app" } };
+        { "light", "light_toggle" }, { "exit", "exit_app" }, { "menu", "open_settings" } };
 
     private Actions() { }
 
@@ -93,11 +114,20 @@ final class Actions {
         return null;
     }
 
-    /** The actions of a sub-menu. */
-    static java.util.List<Def> of(int cat) {
+    /** The actions of a sub-menu that can be chosen for a kind of place: BTN, TAP or SWP. */
+    static java.util.List<Def> of(int cat, int kind) {
         java.util.List<Def> l = new java.util.ArrayList<Def>();
-        for (Def d : ALL) if (d.cat == cat) l.add(d);
+        for (Def d : ALL) if (d.cat == cat && (d.scope & kind) != 0) l.add(d);
         return l;
+    }
+
+    /** An old gesture id that stands for an action with an argument: {new id, argument}; null when the id needs no change. */
+    static String[] split(String id) {
+        if ("light_max".equals(id)) return new String[] { "light_set", "24" };
+        if ("light_min".equals(id)) return new String[] { "light_set", "0" };
+        if ("warm_max".equals(id)) return new String[] { "warm_set", "24" };
+        if ("warm_min".equals(id)) return new String[] { "warm_set", "0" };
+        return null;
     }
 
     /** Runs the action; arg may be null; leave (may be null) is run first when the action leaves the page. */

@@ -43,17 +43,6 @@ public final class Icons {
         blit(ctx, c, res, cx, cy, s, p.getColor());
     }
 
-    /** Icon for a status-bar custom button id (lock, invert, home, light, exit, none). */
-    static int forId(String id) {
-        if ("lock".equals(id)) return LOCK;
-        if ("invert".equals(id)) return INVERT;
-        if ("home".equals(id)) return HOME;
-        if ("light".equals(id)) return SUN;
-        if ("exit".equals(id)) return EXIT;
-        if ("clear".equals(id)) return REFRESH;
-        return NONE;
-    }
-
     /** Draw icon "type" centred at (cx, cy) inside a square of side "s". The paint decides the colour. */
     static void draw(Context ctx, Canvas c, int type, float cx, float cy, float s, Paint p, boolean off) {
         int color = p.getColor();

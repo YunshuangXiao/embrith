@@ -13,13 +13,6 @@ import android.widget.LinearLayout;
 
 /** Choose what each gesture does. The choices go to /dev/kdisp/ctl/conf (G_*), where kgest on the Kindle side reads them at once. */
 public class GestureActivity extends Activity {
-    private static final String[] ACTION_IDS = {
-        "none", "clear", "invert", "back", "home", "light_toggle", "light_adjust", "warm_adjust", "wifi_toggle", "statusbar", "menu", "lock", "screenshot",
-        "page_next", "page_prev", "light_max", "light_min", "warm_max", "warm_min", "app_switch" };
-    private static final String[] ACTION_TEXT = {
-        "无", "刷新屏幕(去残影)", "反色", "返回", "回到桌面", "前光开/关", "调节前光亮度", "调节色温", "Wi-Fi 开/关", "下拉状态栏", "打开设置", "休眠", "截图",
-        "下一页", "上一页", "前光最亮", "前光关到最暗", "色温最暖", "色温最冷", "切换应用(最近任务)" };
-
     // the third-level pages: one per kind of finger movement
     private static final String[] CATS = { "双指点按", "双指滑动", "单指点按", "单指滑动" };
 
@@ -30,8 +23,6 @@ public class GestureActivity extends Activity {
         { "G_SWIPE2_H", "双指左右滑", "none", "1", null },
         { "G_SWIPE2_VL", "双指上下滑(左半屏)", "none", "1", null },
         { "G_SWIPE2_VR", "双指上下滑(右半屏)", "none", "1", null },
-        { "G_SWIPE2_U", "双指上滑(整屏)", "none", "1", null },
-        { "G_SWIPE2_D", "双指下滑(整屏)", "none", "1", null },
         { "G_SWIPE2_NE", "双指向右上滑", "none", "1", "斜向" },
         { "G_SWIPE2_NW", "双指向左上滑", "none", "1", null },
         { "G_SWIPE2_SE", "双指向右下滑", "none", "1", null },
@@ -57,7 +48,7 @@ public class GestureActivity extends Activity {
     };
     private static final String[] CAT_NOTE = {
         null,
-        "双指滑动\t双指上下滑(整屏)只在左右半屏的设置为无时使用.",
+        null,
         "单指点按\t角落轻点和双击不拦截触摸, 应用同时也会收到. 一次双击会先触发一次轻点的动作.",
         "单指滑动\t设了动作后, 贴边起滑的触摸不再传给应用; 没设动作的边缘不受影响." };
 
@@ -96,7 +87,10 @@ public class GestureActivity extends Activity {
         g = Ui.addGroup(body);
         Ui.add(g, Ui.row(this, "恢复默认手势", "", new View.OnClickListener() {
             @Override public void onClick(View v) {
-                for (int i = 0; i < SLOTS.length; i++) Ctl.set(SLOTS[i][0], SLOTS[i][2]);
+                for (int i = 0; i < SLOTS.length; i++) {
+                    Ctl.set(SLOTS[i][0], SLOTS[i][2]);
+                    Ctl.set(SLOTS[i][0] + "_ARG", "");
+                }
             }
         }));
 
@@ -125,10 +119,16 @@ public class GestureActivity extends Activity {
             }
             final String key = SLOTS[i][0];
             final String label = SLOTS[i][1];
-            final String def = SLOTS[i][2];
             Ui.Row r = Ui.nav(this, label, "", new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    ChoiceActivity.open(GestureActivity.this, label, ACTION_IDS, ACTION_TEXT, "ctl", key, def, null);
+                    SlotViews.pickAction(GestureActivity.this, label, new SlotViews.Sink() {
+                        @Override public void put(String act, String arg) {
+                            Ctl.set(key, act);
+                            Ctl.set(key + "_ARG", arg);
+                        }
+                    }, true, hasSteps(key) ? Actions.SWP : Actions.TAP, new Runnable() {
+                        @Override public void run() { update(); }
+                    });
                 }
             });
             Ui.add(g, r);
@@ -145,9 +145,24 @@ public class GestureActivity extends Activity {
         update();
     }
 
-    private static String actionText(String id) {
-        int i = ChoiceActivity.indexOf(ACTION_IDS, id);
-        return i >= 0 ? ACTION_TEXT[i] : id;
+    /** The gestures that give the steps of a swipe to kgest (a vertical swipe of two fingers, a swipe along an edge): only these offer the *_adjust actions. */
+    private static boolean hasSteps(String key) {
+        return key.startsWith("G_SWIPE2_V") || (key.startsWith("G_EDGE_") && !"G_EDGE_T_L".equals(key));
+    }
+
+    /** The action of a gesture (key = the action, key_ARG = its argument), with the argument if it has one. An old id with a fixed level becomes the action with that argument. */
+    private String actionText(String key, String def) {
+        String id = Ctl.get(key, def);
+        String[] sp = Actions.split(id);
+        if (sp != null) {
+            Ctl.set(key, sp[0]);
+            Ctl.set(key + "_ARG", sp[1]);
+            id = sp[0];
+        }
+        Actions.Def d = Actions.find(id);
+        if (d == null) return Ui.t(this, "无");
+        String arg = Ctl.get(key + "_ARG", "");
+        return Ui.t(this, d.name) + (arg.length() > 0 ? " " + arg : "");
     }
 
     private void update() {
@@ -155,6 +170,6 @@ public class GestureActivity extends Activity {
             enableRow.setOn("1".equals(Ctl.get("GESTURES", "1")));
             return;
         }
-        for (int i = 0; i < shown.length; i++) slotRows[i].setValue(actionText(Ctl.get(shown[i][0], shown[i][2])));
+        for (int i = 0; i < shown.length; i++) slotRows[i].setValue(actionText(shown[i][0], shown[i][2]));
     }
 }

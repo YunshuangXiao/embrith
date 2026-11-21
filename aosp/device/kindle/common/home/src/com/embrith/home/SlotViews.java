@@ -5,6 +5,7 @@
 package com.embrith.home;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.view.View;
@@ -121,26 +122,52 @@ final class SlotViews {
 
     /** The action of a button: first the sub-menu, then the action; an action with an argument asks for it. */
     private static void pickAction(final Activity a, final Slots set, final String id, final Runnable redraw) {
-        String[] cats = new String[Actions.CATS.length];
-        for (int i = 0; i < cats.length; i++) cats[i] = Ui.t(a, Actions.CATS[i]);
-        new Ui.Builder(a).setTitle("按钮动作").setItems(cats, new DialogInterface.OnClickListener() {
-            @Override public void onClick(DialogInterface d, int cat) {
-                final java.util.List<Actions.Def> l = Actions.of(cat);
+        pickAction(a, "按钮动作", prefSink(a, set.key(id, "act"), set.key(id, "arg")), false, Actions.BTN, redraw);
+    }
+
+    /** Where a chosen action and its argument go. */
+    interface Sink {
+        void put(String act, String arg);
+    }
+
+    /** A sink that stores the action and the argument in Prefs. */
+    static Sink prefSink(final Context c, final String actKey, final String argKey) {
+        return new Sink() {
+            @Override public void put(String act, String arg) {
+                Prefs.putStr(c, actKey, act);
+                Prefs.putStr(c, argKey, arg);
+            }
+        };
+    }
+
+    /** The choice of an action for a button or a gesture (kind = Actions.BTN, TAP or SWP): the same sub-menus and arguments. withNone adds a first entry "none". */
+    static void pickAction(final Activity a, String title, final Sink sink, final boolean withNone, final int kind, final Runnable redraw) {
+        final int off = withNone ? 1 : 0;
+        String[] cats = new String[Actions.CATS.length + off];
+        if (withNone) cats[0] = Ui.t(a, "无");
+        for (int i = 0; i < Actions.CATS.length; i++) cats[i + off] = Ui.t(a, Actions.CATS[i]);
+        new Ui.Builder(a).setTitle(title).setItems(cats, new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface d, int pos) {
+                if (pos < off) {
+                    sink.put("none", "");
+                    redraw.run();
+                    return;
+                }
+                final int cat = pos - off;
+                final java.util.List<Actions.Def> l = Actions.of(cat, kind);
                 String[] names = new String[l.size()];
                 for (int i = 0; i < names.length; i++) names[i] = Ui.t(a, l.get(i).name);
                 new Ui.Builder(a).setTitle(Actions.CATS[cat]).setItems(names, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d2, int which) {
                         final Actions.Def def = l.get(which);
                         if (def.opts == null) {
-                            Prefs.putStr(a, set.key(id, "act"), def.id);
-                            Prefs.putStr(a, set.key(id, "arg"), "");
+                            sink.put(def.id, "");
                             redraw.run();
                             return;
                         }
                         new Ui.Builder(a).setTitle(def.paramTitle).setItems(def.opts, new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d3, int k) {
-                                Prefs.putStr(a, set.key(id, "act"), def.id);
-                                Prefs.putStr(a, set.key(id, "arg"), def.opts[k]);
+                                sink.put(def.id, def.opts[k]);
                                 redraw.run();
                             }
                         }).show();

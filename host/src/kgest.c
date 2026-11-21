@@ -3,6 +3,8 @@
 /* Referenced project: KOReader, AGPL-3.0, https://github.com/koreader/koreader (COPYING in that project). Files consulted:
  *   plugins/gestures.koplugin/main.lua   names and kinds of gestures (tap corner, multiswipe, two finger)
  *   frontend/device/kindle/device.lua    frameworkStarted registered through lipc (kgest --kaf)
+ *   frontend/device/devicelistener.lua   calculateGestureDelta: the change of a level by a swipe, delta = ceil(max / 2 * x^2), x = the distance as a
+ *                                        fraction of 0.8 of the screen side (re-implemented in swipe_delta below, no code copied)
  * Referenced project: VeraDroid, GPL-3.0-or-later, Copyright (C) 2026 the VeraDroid contributors. File consulted:
  *   tools/vdkaf/vdkaf.c                  the same stand-in for com.lab126.kaf (frameworkStarted answered 1 through liblipc)
  */
@@ -21,13 +23,13 @@
  *   G_TAP_TL / _TR / _BL / _BR     one finger, short tap in a corner        G_DTAP_TL / _TR / _BL / _BR   double tap in a corner
  *   G_EDGE_T_L                     one finger, swipe down from the top edge, left half                  default none
  *   G_EDGE_L_UP / _L_DOWN / _R_UP / _R_DOWN   one finger, swipe up or down along the left or right edge (starts within EDGE_SIDE_PX of it)
+ *   light_adjust / warm_adjust on these and on G_SWIPE2_VL / _VR change the level while the fingers move (the amount follows swipe_delta)
  *   G_PINCH_IN / G_PINCH_OUT       two fingers, pinch together / spread apart
  *   G_SWIPE2_NE / _NW / _SE / _SW  two fingers, diagonal swipe
- *   G_SWIPE2_U / G_SWIPE2_D        two fingers, swipe up / down on the whole screen (used when the half-screen slot above is none)
  *   FIXED (like iOS, not configurable, always on): one finger from the top edge, right half, swipe down = status panel;
  *                                                  one finger from the bottom edge, swipe up = left half home (HOMEPAGE key), right half back (BACK key)
  *   FIXED: one finger, hold 3 s in the top left corner = leave Android (works even when GESTURES=0)
- * Actions: none clear invert back home light_toggle light_adjust warm_adjust wifi_toggle statusbar menu screenshot lock page_next page_prev light_max light_min warm_max warm_min app_switch (lock = sleep: ctl/sleep; the power key and the magnetic cover are powerd events, not read here)
+ * Actions: none clear invert back home light_toggle light_adjust warm_adjust wifi_toggle statusbar menu screenshot lock page_next page_prev light_max light_min warm_max warm_min app_switch, and the ids of the action table of the launcher (Actions.java: refresh sleep open_settings light_set light_inc light_dec warm_set warm_inc warm_dec, the rest go to ctl/act for host/ui/ctl.sh) with their argument in <key>_ARG (lock = sleep: ctl/sleep; the power key and the magnetic cover are powerd events, not read here)
  * GESTURES=0 in ctl/conf switches all the configurable gestures off. The fixed ones stay on: the top edge swipe down in the right half (status panel),
  * the bottom edge swipe up (left half home, right half back), the two diagonal corners (screenshot) and the 3 s hold in the top left corner (leave Android).
  *
@@ -85,10 +87,17 @@ static long long wall_ms(void) { struct timeval tv; gettimeofday(&tv, NULL); ret
 /* ------------------------------------------------------------------ side effects */
 static void ctl_path(char* out, size_t n, const char* name) { snprintf(out, n, "%s/ctl/%s", dir, name); }
 
+/* the watchdog waits on the FIFO ctl/cmd (read -t 2): a line wakes it at once, else it looks at the request files only after up to 2 s */
+static void wake_watchdog(void) {
+    char cp[300]; ctl_path(cp, sizeof cp, "cmd");
+    int cf = open(cp, O_WRONLY | O_NONBLOCK);        /* fails (ENXIO) when nobody reads it: then the 2 s scan finds the request */
+    if (cf >= 0) { if (write(cf, "\n", 1) < 0) { } close(cf); }
+}
 static void touch_file(const char* name) {
     char p[300]; ctl_path(p, sizeof p, name);
     int fd = open(p, O_WRONLY | O_CREAT, 0666);
     if (fd >= 0) { fchmod(fd, 0666); close(fd); }
+    wake_watchdog();
 }
 static int conf_int(const char* key, int def) {
     char p[300], line[160]; ctl_path(p, sizeof p, "conf");
@@ -190,9 +199,22 @@ static void conf_str(const char* key, const char* def, char* out, size_t n) {
     fclose(f);
 }
 static void write_hint(char c);
+/* ask the Kindle side to do an action of the table: one line "id [argument]" in ctl/act (host/ui/ctl.sh act_run) */
+static void act_append(const char* id, const char* arg) {
+    char p[300]; ctl_path(p, sizeof p, "act");
+    int fd = open(p, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    if (fd < 0) return;
+    fchmod(fd, 0666);
+    char line[96]; int n = snprintf(line, sizeof line, "%s%s%s\n", id, *arg ? " " : "", arg);
+    if (n > 0) { if (n >= (int)sizeof line) n = (int)sizeof line - 1; if (write(fd, line, (size_t)n) < 0) printf("action: write ctl/act failed\n"); }
+    close(fd);
+    wake_watchdog();
+}
+static int step_of(const char* s) { int n = atoi(s); return n > 0 ? n : 1; }
 /* run the action that the user assigned to a gesture. steps: for the *_adjust actions (+ = up). */
 static void run_action(const char* key, const char* def, int steps, int right_half, const char* why) {
     char a[48]; conf_str(key, def, a, sizeof a);
+    char argkey[64], arg[16]; snprintf(argkey, sizeof argkey, "%s_ARG", key); conf_str(argkey, "", arg, sizeof arg);
     printf("action: %s (%s -> %s)\n", a, why, key);
     if (!strcmp(a, "none")) return;
     else if (!strcmp(a, "clear")) touch_file("clear");
@@ -213,7 +235,16 @@ static void run_action(const char* key, const char* def, int steps, int right_ha
     else if (!strcmp(a, "warm_max")) set_level(1, 24);
     else if (!strcmp(a, "warm_min")) set_level(1, 0);
     else if (!strcmp(a, "app_switch")) key_tap(KEY_APPSELECT);   /* recent apps */
-    else if (!strcmp(a, "lock")) touch_file("sleep");          /* 休眠: embrith.sh asks powerd, like the power button */
+    else if (!strcmp(a, "lock") || !strcmp(a, "sleep")) touch_file("sleep");          /* 休眠: embrith.sh asks powerd, like the power button */
+    else if (!strcmp(a, "refresh")) touch_file("clear");
+    else if (!strcmp(a, "open_settings")) touch_file("menu");
+    else if (!strcmp(a, "light_set")) set_level(0, atoi(arg));
+    else if (!strcmp(a, "warm_set")) set_level(1, atoi(arg));
+    else if (!strcmp(a, "light_inc")) adjust(0, step_of(arg));
+    else if (!strcmp(a, "light_dec")) adjust(0, -step_of(arg));
+    else if (!strcmp(a, "warm_inc")) adjust(1, step_of(arg));
+    else if (!strcmp(a, "warm_dec")) adjust(1, -step_of(arg));
+    else act_append(a, arg);          /* the other actions of the table: wifi_on wifi_off bt_toggle restart_app reboot usb_eject check_update exit_app */
     (void)right_half;
 }
 
@@ -223,6 +254,10 @@ static long long t_start, t2;
 static int cx0, cy0, lcx, lcy, maxtravel;
 static int has2, diag2;
 static int d0, dl;                              /* the distance between two fingers: when the second one came down, and now */
+/* live steps: a swipe bound to light_adjust / warm_adjust changes the level while the fingers move (the amount: swipe_delta) */
+#define LIVE_START_PX 60   /* the swipe becomes live (and gives the first level) after this distance */
+static int live_on, live_mode, live_no, live_base, live_last;   /* live_mode: 1 one finger along an edge, 2 two fingers; live_no: bits of the checks that found another action (1 up, 2 down, 4 two fingers) */
+static const char* live_prop;
 static int last_corner = -1;                    /* corner of the last one-finger tap (0 TL, 1 TR, 2 BL, 3 BR), -1 none */
 static long long last_tap_ms;
 static int side_l, side_r;                      /* set at the start of a touch: an action is bound to a swipe along the left / right edge */
@@ -238,6 +273,17 @@ static int pair_dist(void) {
 /* a gesture slot has an action (not none)? */
 static int bound(const char* key) { char a[48]; conf_str(key, "none", a, sizeof a); return strcmp(a, "none") != 0; }
 
+/* The change of a level (0..24) by a vertical swipe of dy pixels (dy < 0 = up = +), after KOReader (devicelistener.lua, calculateGestureDelta):
+ * x = the distance as a fraction of 0.8 of the screen height, at most 1; the change is ceil(12 * x^2), so at most half of the range: fine at
+ * the start of a swipe, quick when it is long, and any swipe that counts changes the level by at least 1. */
+#define SWIPE_LEVELS 12
+static int swipe_delta(int dy) {
+    long long a = dy < 0 ? -dy : dy, full = (long long)g_panel_h * 8 / 10;
+    if (full < 1) full = 1;
+    if (a > full) a = full;
+    int d = (int)((SWIPE_LEVELS * a * a + full * full - 1) / (full * full));
+    return dy < 0 ? d : -d;
+}
 static int travel_of(const struct slot* s) { int dx = s->x - s->x0, dy = s->y - s->y0; return (int)(dx < 0 ? -dx : dx) + (int)(dy < 0 ? -dy : dy); }
 
 
@@ -300,11 +346,8 @@ static void release_eval(long long now) {
     else if (adx < 40 && ady < 40 && dur < TAP_MS) run_action("G_TAP2", "none", 0, 0, "two-finger tap");
     else if (adx >= 200 && ady * 10 < adx * 6) run_action("G_SWIPE2_H", "none", 0, 0, "two-finger swipe");
     else if (ady >= 200 && adx * 10 < ady * 6) {
-        int steps = ady / 60; steps = steps < 1 ? 1 : steps > 8 ? 8 : steps;
         int right = cx0 >= g_panel_w / 2;
-        const char* half = right ? "G_SWIPE2_VR" : "G_SWIPE2_VL";
-        if (bound(half)) run_action(half, "none", dy < 0 ? steps : -steps, right, "two-finger vertical swipe");
-        else run_action(dy < 0 ? "G_SWIPE2_U" : "G_SWIPE2_D", "none", dy < 0 ? steps : -steps, right, "two-finger vertical swipe, whole screen");
+        run_action(right ? "G_SWIPE2_VR" : "G_SWIPE2_VL", "none", swipe_delta(dy), right, "two-finger vertical swipe");
     }
     else if (adx >= 150 && ady >= 150 && ady * 2 > adx && adx * 2 > ady)
         run_action(dy < 0 ? (dx > 0 ? "G_SWIPE2_NE" : "G_SWIPE2_NW") : (dx > 0 ? "G_SWIPE2_SE" : "G_SWIPE2_SW"), "none", 0, 0, "two-finger diagonal swipe");
@@ -323,9 +366,59 @@ static int side_swipe(int dyy) {
     if (!side || ady < 150 || adx >= 200) return 0;
     const char* key = side == 1 ? (dyy < 0 ? "G_EDGE_L_UP" : "G_EDGE_L_DOWN") : (dyy < 0 ? "G_EDGE_R_UP" : "G_EDGE_R_DOWN");
     if (!bound(key)) return 0;
-    int steps = ady / 60; steps = steps < 1 ? 1 : steps > 8 ? 8 : steps;
-    run_action(key, "none", dyy < 0 ? steps : -steps, side == 2, "edge swipe");
+    run_action(key, "none", swipe_delta(dyy), side == 2, "edge swipe");
     return 1;
+}
+
+/* the action of a swipe gesture is light_adjust (0) or warm_adjust (1); -1 for any other action */
+static int adjust_kind(const char* key) {
+    char a[48]; conf_str(key, "none", a, sizeof a);
+    return !strcmp(a, "light_adjust") ? 0 : !strcmp(a, "warm_adjust") ? 1 : -1;
+}
+/* the swipe is live from now on: remember the level where it started; the steps are counted from there */
+static void live_start(int amber, int mode) {
+    live_prop = "flIntensity";
+    if (amber && lipc_get("com.lab126.powerd", "currentAmberLevel") >= 0) live_prop = "currentAmberLevel";
+    int v = dry ? 10 : lipc_get("com.lab126.powerd", live_prop); if (v < 0) v = 10;
+    live_base = live_last = v; live_on = 1; live_mode = mode; fired = 1;   /* fired: the release does nothing more */
+    printf("action: live %s from %d\n", live_prop, v);
+}
+/* steps: the change since the start (+ = brighter): the level follows the fingers, up and down, and stops at 0 and 24 */
+static void live_apply(int steps) {
+    int v = live_base + steps; v = v < 0 ? 0 : v > 24 ? 24 : v;
+    if (v == live_last) return;
+    live_last = v;
+    lipc_set("com.lab126.powerd", live_prop, v);
+    printf("action: %s %d (live)\n", live_prop, v);
+    notify_status();
+}
+/* called after every touch report: finds a swipe with steps (two fingers up/down, left or right half, or one finger up/down along an edge)
+ * and keeps changing the level while it goes on. Swipes with another action are left to the release check. */
+static void live_update(void) {
+    if (!in_session || nfing < 1) return;
+    if (live_on) {
+        if (live_mode == 2 && nfing >= 2) live_apply(swipe_delta(lcy - cy0));
+        else if (live_mode == 1 && nfing == 1) live_apply(swipe_delta(last_y - first_y));
+        return;
+    }
+    if (fired) return;
+    if (nfing >= 2 && has2 && !diag2) {
+        int dx = lcx - cx0, dy = lcy - cy0, adx = dx < 0 ? -dx : dx, ady = dy < 0 ? -dy : dy, dd = dl - d0;
+        if (ady < LIVE_START_PX || adx * 10 >= ady * 6 || dd >= PINCH_PX || dd <= -PINCH_PX || (live_no & 4) || !conf_int("GESTURES", 1)) return;
+        int k = adjust_kind(cx0 >= g_panel_w / 2 ? "G_SWIPE2_VR" : "G_SWIPE2_VL");
+        if (k < 0) { live_no |= 4; return; }
+        live_start(k, 2); live_apply(swipe_delta(dy));
+    } else if (nfing == 1 && maxf == 1 && first_x >= 0 && first_y > EDGE_TOP_PX && first_y < g_panel_h - EDGE_BOT_PX) {
+        int side = first_x <= EDGE_SIDE_PX ? 1 : first_x >= g_panel_w - EDGE_SIDE_PX ? 2 : 0;
+        int dy = last_y - first_y, ady = dy < 0 ? -dy : dy, adx = last_x - first_x; if (adx < 0) adx = -adx;
+        if (!side || !(side == 1 ? side_l : side_r) || ady < LIVE_START_PX || adx >= 200) return;
+        int bit = dy < 0 ? 1 : 2;
+        if (live_no & bit) return;
+        const char* key = side == 1 ? (dy < 0 ? "G_EDGE_L_UP" : "G_EDGE_L_DOWN") : (dy < 0 ? "G_EDGE_R_UP" : "G_EDGE_R_DOWN");
+        int k = adjust_kind(key);
+        if (k < 0) { live_no |= bit; return; }
+        live_start(k, 1); live_apply(swipe_delta(dy));
+    }
 }
 
 /* one finger: a short tap in a corner, or a second one in the same corner (double tap). The tap still reaches Android. */
@@ -352,7 +445,7 @@ static void process_syn(long long now) {
     nfing = n;
     if (n > 0 && !in_session) {
         in_session = 1; maxf = 0; fired = 0; t_start = now; has2 = 0; diag2 = 0; maxtravel = 0;
-        first_x = first_y = -1; d0 = dl = 0;
+        first_x = first_y = -1; d0 = dl = 0; live_on = 0; live_no = 0;
         int g = conf_int("GESTURES", 1);
         side_l = g && (bound("G_EDGE_L_UP") || bound("G_EDGE_L_DOWN"));
         side_r = g && (bound("G_EDGE_R_UP") || bound("G_EDGE_R_DOWN"));
@@ -377,6 +470,7 @@ static void process_syn(long long now) {
         }
         lcx = sx / n; lcy = sy / n; dl = pair_dist();
     }
+    live_update();
     if (n == 0) {
         { char up[300]; ctl_path(up, sizeof up, "touchup"); int uf = open(up, O_WRONLY | O_CREAT | O_TRUNC, 0666); if (uf >= 0) { fchmod(uf, 0666); close(uf); } }
         if (maxf == 1 && !fired) {
@@ -469,7 +563,7 @@ static int edge_zone(void) {
 }
 /* how far the finger has moved in the direction of the edge swipe (negative: the other way) */
 static int edge_progress(int z) { int dy = last_y - first_y; return z >= 2 ? (dy < 0 ? -dy : dy) : z > 0 ? dy : -dy; }
-static int edge_swipe(int z) { int dx = last_x - first_x; if (dx < 0) dx = -dx; return edge_progress(z) >= 150 && dx < 200; }
+static int edge_swipe(int z) { int dx = last_x - first_x; if (dx < 0) dx = -dx; return (edge_progress(z) >= 150 && dx < 200) || (live_on && live_mode == 1 && z >= 2); }
 
 static void vt_push(int fd, const struct input_event* e) {
     if (vt_nb == 0) vt_slot0 = vt_src;

@@ -53,8 +53,6 @@ public class MenuActivity extends Activity {
         { "外观", "下拉面板", "组件设置", "桌面应用" },
         { "书库位置", "最近阅读", "阅读目标", "排序" },
         { "设备信息", "地区与语言", "应用管理", "系统维护", "高级与兼容性" } };
-    static final String[] SB_IDS = { "lock", "clear", "light", "exit", "none" };
-    static final String[] SB_TEXT = { "休眠", "刷新屏幕", "开关前光", "退出Embrith", "无" };
 
     // 显示: 刷新(ctl/conf, kdispd)
     private static final String[] FLASH = { "1", "3", "6", "10", "0" };
@@ -687,17 +685,25 @@ public class MenuActivity extends Activity {
         contrastValue.setText(v);
     }
 
-    static String sbText(String id) {
-        for (int i = 0; i < SB_IDS.length; i++) if (SB_IDS[i].equals(id)) return SB_TEXT[i];
-        return "无";
+    /** The action of a custom button of the pull-down panel (key = the action, key_arg = its argument), with the argument if it has one. */
+    private String sbText(String key, String def) {
+        Actions.Def d = Actions.find(Prefs.getStr(this, key, def));
+        if (d == null) return Ui.t(this, "无");
+        String arg = Prefs.getStr(this, key + "_arg", "");
+        return Ui.t(this, d.name) + (arg.length() > 0 ? " " + arg : "");
     }
 
+    /** The custom buttons choose from the same actions as the button widgets (SlotViews.pickAction). */
     private Ui.Row sbRow(final String key, final String label, final String def) {
-        return Ui.nav(this, label, sbText(Prefs.getStr(this, key, def)), new View.OnClickListener() {
+        final Ui.Row[] row = new Ui.Row[1];
+        row[0] = Ui.nav(this, label, sbText(key, def), new View.OnClickListener() {
             @Override public void onClick(View v) {
-                ChoiceActivity.open(MenuActivity.this, label, SB_IDS, SB_TEXT, "pref", key, def, null);
+                SlotViews.pickAction(MenuActivity.this, label, SlotViews.prefSink(MenuActivity.this, key, key + "_arg"), true, Actions.BTN, new Runnable() {
+                    @Override public void run() { row[0].value.setText(sbText(key, def)); }
+                });
             }
         });
+        return row[0];
     }
 
     // ------------------------------------------------------------------ 系统
