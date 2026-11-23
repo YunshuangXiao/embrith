@@ -221,11 +221,51 @@ cmd_start() {
   echo "$LOOP" > "$ST/loop"
   say "system on $LOOP (embrith.raw +$SYS_OFF)"
 
+  # 4a. ext4 loopback /data image when user storage is not ext4 (e.g. VFAT on Scribe)
+  if ! grep -q " /mnt/base-us ext4" /proc/mounts && ! grep -q " $BASE/data ext4" /proc/mounts; then
+    if [ ! -f "$BASE/data.img" ]; then
+      DM=${DATA_IMG_MB:-1024}
+      case "$DM" in ''|*[!0-9]*) DM=1024 ;; esac
+      say "creating ${DM} MB ext4 data image ($BASE/data.img)"
+      dd if=/dev/zero of="$BASE/data.img" bs=1M count="$DM" 2>/dev/null || die "cannot create $BASE/data.img"
+      /sbin/mkfs.ext4 -F -q -E nodiscard -m 1 "$BASE/data.img" || die "mkfs.ext4 failed on $BASE/data.img"
+    fi
+    DLOOP=
+    for i in 11 12 13 14 15 16; do
+      if losetup /dev/loop/$i "$BASE/data.img" 2>/dev/null; then DLOOP=/dev/loop/$i; break; fi
+    done
+    [ -n "$DLOOP" ] || die "no free loop device for $BASE/data.img"
+    echo "$DLOOP" > "$ST/dataloop"
+    mkdir -p "$BASE/data"
+    mount -t ext4 -o rw,noatime "$DLOOP" "$BASE/data" || { losetup -d "$DLOOP" 2>/dev/null; rm -f "$ST/dataloop"; die "cannot mount $DLOOP on $BASE/data"; }
+    say "data on $DLOOP ($BASE/data.img, ext4)"
+  fi
+  if [ -f "$BASE/media.img" ] && ! grep -q " $BASE/data/media ext4" /proc/mounts; then
+    MLOOP=
+    for i in 11 12 13 14 15 16; do
+      if losetup /dev/loop/$i "$BASE/media.img" 2>/dev/null; then MLOOP=/dev/loop/$i; break; fi
+    done
+    [ -n "$MLOOP" ] || die "no free loop device for $BASE/media.img"
+    echo "$MLOOP" > "$ST/medialoop"
+    mkdir -p "$BASE/data/media"
+    mount -t ext4 -o rw,noatime "$MLOOP" "$BASE/data/media" || { losetup -d "$MLOOP" 2>/dev/null; rm -f "$ST/medialoop"; die "cannot mount $MLOOP on $BASE/data/media"; }
+    chown 1023:1023 "$BASE/data/media" 2>/dev/null; chmod 770 "$BASE/data/media" 2>/dev/null
+    say "media on $MLOOP ($BASE/media.img, ext4)"
+  fi
+
   # 4b. folder for wallpaper / lock screen pictures (visible over USB, mounted into the container as /dev/wallpapers)
   mkdir -p "$WALL" && chmod 755 "$WALL" && chmod -R a+rX "$WALL" 2>/dev/null
 
   # 5. private copies of the device nodes (Android chmods these, never the Kindle's own)
   make_devices
+  KD_BINDER_VER=
+  [ -x "$RUNBIN/kutil" ] && [ -e "$DEVDIR/binder" ] && KD_BINDER_VER=$("$RUNBIN/kutil" binder-ver "$DEVDIR/binder" 2>/dev/null | tr -dc '0-9')
+  if [ -n "$KD_BINDER_VER" ]; then
+    echo "$KD_BINDER_VER" > "$ST/binder_ver"
+    say "binder protocol version: $KD_BINDER_VER"
+  else
+    rm -f "$ST/binder_ver"
+  fi
 
   # 6. namespaces + Android init
   prep_zen
@@ -236,7 +276,7 @@ cmd_start() {
   KD_PANEL=$(hw_panel | tr ' ' x); [ -n "$KD_PANEL" ] || { report_auto; cmd_stop; die "cannot read the panel size from the framebuffer"; }
   KD_PPI=$(hw_ppi); [ -n "$KD_PPI" ] && say "panel $KD_PANEL, $KD_PPI ppi" || say "WARNING: panel $KD_PANEL, model $(hw_devcode) not in conf/models.conf, the density of the image stays"
   say "starting Android (log: $LOGD/enter.log)"
-  export KD_PANEL="$KD_PANEL" KD_PPI="$KD_PPI"
+  export KD_PANEL="$KD_PANEL" KD_PPI="$KD_PPI" KD_BINDER_VER="$KD_BINDER_VER"
   export KD_BASE="$BASE" KD_SET="$SET" KD_WALL="$WALL" KD_IMG="$BASE/embrith.raw" KD_ROOT_OFF="$ROOT_OFF" KD_ROOT_LEN="$ROOT_LEN" KD_LOOP="$LOOP" KD_STAGE="$STAGE" KD_TOUCH_NAMES="$KD_TOUCH_NAMES"
   # the subshell puts itself into the freezer group, then execs unshare: every process of the container is inherited into it
   sh -c 'echo $$ > "$1/tasks" 2>/dev/null; shift; exec "$@"' sh "$FZ" unshare -m -p -i -u -n -f --propagation private \
@@ -327,8 +367,15 @@ cmd_start() {
 # After init's early-init the container no longer needs the Kindle's root (/host): detach it, so that nothing running
 # inside can see or remount the Kindle's filesystems.
 hide_host() {
+  w=0
+  while [ "$w" -lt 30 ]; do
+    alive || return 0
+    [ -e "/proc/$(init_pid)/root/host/var/tmp/embrith-bin/kutil" ] && break
+    sleep 1
+    w=$((w + 1))
+  done
   sleep 4
   alive || return 0
-  nsenter -t "$(init_pid)" -m -- /host/var/tmp/embrith-bin/kutil umount-lazy /host 2>>"$LOGD/enter.log" \
+  nsenter -t "$(init_pid)" -m -r -- /host/var/tmp/embrith-bin/kutil umount-lazy /host 2>>"$LOGD/enter.log" \
     && say "Kindle's mounts hidden from the container" || say "WARNING: could not hide /host from the container"
 }

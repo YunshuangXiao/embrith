@@ -39,7 +39,7 @@ cleanup_strays() {
   if [ "$1" = idle ]; then
     [ "$(fz_tasks)" -gt 0 ] && { fz_drain 10 || say "WARNING: $(fz_tasks) container processes still alive"; }
     sleep_state_clear
-    rm -f "$ST/init.pid" "$ST/kdispd.pid" "$ST/kgest.pid" "$ST/slirp.pid" "$ST/stopping" "$ST/restarting" "$K_CTL/cmd"
+    rm -f "$ST/init.pid" "$ST/kdispd.pid" "$ST/kgest.pid" "$ST/slirp.pid" "$ST/binder_ver" "$ST/stopping" "$ST/restarting" "$K_CTL/cmd"
     unprotect_host
   fi
   ssh_clean
@@ -88,6 +88,19 @@ cmd_stop() {
     losetup -d "$L" 2>/dev/null || say "WARNING: could not detach $L (still in use)"
     rm -f "$ST/loop"
   fi
+  if [ -f "$ST/medialoop" ]; then
+    ML=$(cat "$ST/medialoop")
+    umount "$BASE/data/media" 2>/dev/null || umount -l "$BASE/data/media" 2>/dev/null
+    losetup -d "$ML" 2>/dev/null || say "WARNING: could not detach $ML (still in use)"
+    rm -f "$ST/medialoop"
+  fi
+  if [ -f "$ST/dataloop" ]; then
+    DL=$(cat "$ST/dataloop")
+    umount "$BASE/data" 2>/dev/null || umount -l "$BASE/data" 2>/dev/null
+    losetup -d "$DL" 2>/dev/null || say "WARNING: could not detach $DL (still in use)"
+    rm -f "$ST/dataloop"
+  fi
+  rm -f "$ST/binder_ver"
   rm -rf "$DEVDIR"
   [ -f "$ST/slirp.pid" ] && { kill -TERM "$(cat "$ST/slirp.pid")" 2>/dev/null; rm -f "$ST/slirp.pid"; }
   [ -f "$ST/kgest.pid" ] && { kill -TERM "$(cat "$ST/kgest.pid")" 2>/dev/null; rm -f "$ST/kgest.pid"; }

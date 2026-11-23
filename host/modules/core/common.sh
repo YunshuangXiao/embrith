@@ -11,7 +11,26 @@ init_pid() { [ -f "$ST/init.pid" ] && cat "$ST/init.pid"; }
 
 alive() { p=$(init_pid); [ -n "$p" ] && [ -d "/proc/$p" ]; }
 
-in_ct() { nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"; }
+ct_preload() {
+  [ "$(cat "$ST/binder_ver" 2>/dev/null)" = 7 ] || return 1
+  _p=$(init_pid); [ -n "$_p" ] || return 1
+  _r="/proc/$_p/root"
+  if [ -f "$_r/sbin/libkindlebinder.so" ]; then
+    printf '%s' '/sbin/libkindlebinder.so:/system/lib/libkindleashmem.so'
+  elif [ -f "$_r/system/lib/libkindlebinder.so" ]; then
+    printf '%s' '/system/lib/libkindlebinder.so:/system/lib/libkindleashmem.so'
+  else
+    return 1
+  fi
+}
+
+in_ct() {
+  if _lp=$(ct_preload); then
+    nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/env "LD_PRELOAD=$_lp" "$@"
+  else
+    nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"
+  fi
+}
 
 ct_sh() {
   # pm/am/settings are app_process wrappers: they need the same env init gives to services
@@ -30,7 +49,11 @@ ct_shell() {
 ct_sh_t() {            # like ct_sh, with a time limit in seconds: ct_sh_t 240 'pm install ...'
   t=$1; shift
   BCP=$(sed -n 's/.*export BOOTCLASSPATH //p' "/proc/$(init_pid)/root/init.environ.rc" 2>/dev/null | head -n1)
-  timeout "$t" nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/sh -c "export ANDROID_ROOT=/system ANDROID_DATA=/data ANDROID_ASSETS=/system/app ANDROID_STORAGE=/storage EXTERNAL_STORAGE=/sdcard PATH=/system/bin:/system/xbin BOOTCLASSPATH=$BCP; $*"
+  if _lp=$(ct_preload); then
+    timeout "$t" nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/env "LD_PRELOAD=$_lp" /system/bin/sh -c "export ANDROID_ROOT=/system ANDROID_DATA=/data ANDROID_ASSETS=/system/app ANDROID_STORAGE=/storage EXTERNAL_STORAGE=/sdcard PATH=/system/bin:/system/xbin BOOTCLASSPATH=$BCP; $*"
+  else
+    timeout "$t" nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/sh -c "export ANDROID_ROOT=/system ANDROID_DATA=/data ANDROID_ASSETS=/system/app ANDROID_STORAGE=/storage EXTERNAL_STORAGE=/sdcard PATH=/system/bin:/system/xbin BOOTCLASSPATH=$BCP; $*"
+  fi
 }
 
 ct_sh_long() {
@@ -38,9 +61,21 @@ ct_sh_long() {
   in_ct_long /system/bin/sh -c "export ANDROID_ROOT=/system ANDROID_DATA=/data ANDROID_ASSETS=/system/app ANDROID_STORAGE=/storage EXTERNAL_STORAGE=/sdcard PATH=/system/bin:/system/xbin BOOTCLASSPATH=$BCP; $*"
 }
 
-in_ct_long() { timeout 25 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"; }
+in_ct_long() {
+  if _lp=$(ct_preload); then
+    timeout 25 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/env "LD_PRELOAD=$_lp" "$@"
+  else
+    timeout 25 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"
+  fi
+}
 
-in_ct_t() { timeout 5 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"; }
+in_ct_t() {
+  if _lp=$(ct_preload); then
+    timeout 5 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- /system/bin/env "LD_PRELOAD=$_lp" "$@"
+  else
+    timeout 5 nsenter -t "$(init_pid)" -m -u -i -n -p -r -w -- "$@"
+  fi
+}
 
 # ---- warmth schedule (our own, like the Kindle's "schedule"): ctl/conf AMBER_SCHED=1, AMBER_ON / AMBER_OFF = HHMM, AMBER_LEVEL 0..24.
 # Inside the window the warmth is set to AMBER_LEVEL (the level before is kept in $ST/amber_prev and restored when the window ends).

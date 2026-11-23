@@ -67,6 +67,10 @@ PRODUCT_PACKAGES += libGLES_android gralloc.default
 # /dev/ashmem emulation on memfd for apps (LD_PRELOAD in init.kindle.rc).
 PRODUCT_PACKAGES += libkindleashmem
 
+# 32-bit Binder v7 compatibility (LD_PRELOAD ABI translator + native v7 batteryproperties daemon),
+# activated at runtime by enter.sh only when the host kernel reports Binder protocol version 7.
+PRODUCT_PACKAGES += libkindlebinder kindle_healthd
+
 # ro.kernel.qemu=1 makes HWUI report "unavailable" (apps then render in software, which is
 # what we need: no ES 2.0). EGL falls back to libGLES_android (ES 1.1) for SurfaceFlinger.
 PRODUCT_PROPERTY_OVERRIDES += \

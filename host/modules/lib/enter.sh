@@ -9,6 +9,7 @@
 #   host/pw6/boot/lib/memory.sh              Java heap limits for a ~1 GB device
 #   host/pw6/boot/lib/slim.sh                services a reader does not use (config.disable_*), ro.zygote.disable_gl_preload
 set -e
+umask 022
 R=/var/tmp/embrith/root
 echo "[enter] building root in $R"
 mkdir -p "$R"
@@ -144,6 +145,35 @@ RC
 fi
 
 mount -t ext4 -o ro "$KD_LOOP" "$R/system"
+if [ "$KD_BINDER_VER" = 7 ]; then
+  BINDER_SHIM=
+  if [ -f /var/tmp/embrith-bin/libkindlebinder.so ]; then
+    cp /var/tmp/embrith-bin/libkindlebinder.so "$R/sbin/libkindlebinder.so"
+    chmod 755 "$R/sbin/libkindlebinder.so"
+    BINDER_SHIM=/sbin/libkindlebinder.so
+  elif [ -f "$R/system/lib/libkindlebinder.so" ]; then
+    BINDER_SHIM=/system/lib/libkindlebinder.so
+  fi
+  if [ -n "$BINDER_SHIM" ]; then
+    sed -i "s|export LD_PRELOAD /system/lib/libkindleashmem.so|export LD_PRELOAD $BINDER_SHIM:/system/lib/libkindleashmem.so|" "$R/init.kindle.rc"
+    # surfaceflinger carries security.capability file xattrs on system.img, which make Bionic skip LD_PRELOAD
+    if [ -f "$R/system/bin/surfaceflinger" ]; then
+      cp "$R/system/bin/surfaceflinger" "$R/sf.bin" && chmod 755 "$R/sf.bin" && mount --bind "$R/sf.bin" "$R/system/bin/surfaceflinger"
+    fi
+  else
+    echo "[enter] WARNING: binder v7 detected but libkindlebinder.so not found"
+  fi
+  if [ -x /var/tmp/embrith-bin/kindle_healthd ]; then
+    cp /var/tmp/embrith-bin/kindle_healthd "$R/sbin/healthd"
+    chmod 755 "$R/sbin/healthd"
+  elif [ -x "$R/system/bin/kindle_healthd" ]; then
+    cp "$R/system/bin/kindle_healthd" "$R/sbin/healthd"
+    chmod 755 "$R/sbin/healthd"
+  else
+    awk '{print} /^service healthd \/sbin\/healthd$/ {print "    disabled"}' "$R/init.rc" > "$R/init.rc.tmp" && mv "$R/init.rc.tmp" "$R/init.rc"
+  fi
+  chmod 644 "$R/init.rc" "$R/init.kindle.rc"
+fi
 
 # Touch screen: Android only treats the device as a touch SCREEN (not a touch pad) when an input device configuration
 # says so. /system is read-only, so the idc directory is copied, extended and bind-mounted over the original.
@@ -186,6 +216,11 @@ RC
 fi
 mkdir -p "$KD_BASE/data"
 mount -o bind "$KD_BASE/data" "$R/data"
+if [ -f "$KD_BASE/media.img" ] && grep -q " $KD_BASE/data/media ext4" /proc/mounts; then
+  mkdir -p "$R/data/media"
+  mount -o bind "$KD_BASE/data/media" "$R/data/media"
+  echo "[enter] media on /data/media ($KD_BASE/media.img)"
+fi
 
 # Kindle folders chosen in Settings (KD_SHARES, checked and recorded by container.sh): read-only bind mounts that keep the folder tree.
 # KD_USER is set above. A failed folder is skipped (a half-done read-write bind is removed again).
