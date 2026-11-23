@@ -16,6 +16,8 @@ Adds runtime-detected compatibility for Kindle devices running a 32-bit Binder v
   - `protect_host()` and `unprotect_host()` check `[ -e /proc/sys/kernel/sysrq ]` so kernels built without `CONFIG_MAGIC_SYSRQ` do not fail container startup.
 - **`hide_host()` race fix (`container.sh`)**:
   - Waits for `/proc/$(init_pid)/root/host/var/tmp/embrith-bin/kutil` before calling `nsenter -t "$(init_pid)" -m -r -- /host/var/tmp/embrith-bin/kutil umount-lazy /host`.
+- **Multi-touch prioritization & separate stylus pass-through (`devices.sh`, `container.sh`, `enter.sh`)**:
+  - `touch_node()` prioritizes capacitive multi-touch panels (`ABS_MT_POSITION_X`/`Y` without `BTN_TOOL_PEN`) over stylus digitizers, while `stylus_node()` passes any separate pen digitizer (e.g. Kindle Scribe Wacom EMR) through as `/dev/input/event11` with matching `.idc` config so finger touch and pen work together.
 
 ## Building & Testing
 

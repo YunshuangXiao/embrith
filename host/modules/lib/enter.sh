@@ -175,16 +175,16 @@ if [ "$KD_BINDER_VER" = 7 ]; then
   chmod 644 "$R/init.rc" "$R/init.kindle.rc"
 fi
 
-# Touch screen: Android only treats the device as a touch SCREEN (not a touch pad) when an input device configuration
-# says so. /system is read-only, so the idc directory is copied, extended and bind-mounted over the original.
-if [ -d "$R/system/usr/idc" ] && [ -n "$KD_TOUCH_NAMES" ]; then
+# Touch screen and stylus IDC configuration: Android only treats the device as a touch SCREEN (not a touch pad) when
+# an input device configuration says so. /system is read-only, so the idc directory is copied, extended and bind-mounted over the original.
+if [ -d "$R/system/usr/idc" ] && [ -n "$KD_TOUCH_NAMES$KD_STYLUS_NAMES" ]; then
   mkdir -p "$R/idc.tmp"
   cp "$R"/system/usr/idc/* "$R/idc.tmp/" 2>/dev/null || true
-  for n in $KD_TOUCH_NAMES; do
+  for n in $KD_TOUCH_NAMES $KD_STYLUS_NAMES; do
     printf 'touch.deviceType = touchScreen\ntouch.orientationAware = 1\ndevice.internal = 1\n' > "$R/idc.tmp/$n.idc"
   done
   chmod 755 "$R/idc.tmp"; chmod 644 "$R"/idc.tmp/*
-  mount --bind "$R/idc.tmp" "$R/system/usr/idc" && echo "[enter] touch idc: $KD_TOUCH_NAMES"
+  mount --bind "$R/idc.tmp" "$R/system/usr/idc" && echo "[enter] touch idc: $KD_TOUCH_NAMES${KD_STYLUS_NAMES:+ $KD_STYLUS_NAMES}"
 fi
 
 # System font chosen in Settings > Personalize (FONT_FILE in custom.conf): a ttf/otf in the Kindle fonts folder, the one the launcher
@@ -212,6 +212,18 @@ on early-init
     mount none /host/var/tmp/embrith-dev/input/keys /dev/input/event10 bind
     chown root input /dev/input/event10
     chmod 0660 /dev/input/event10
+RC
+fi
+# Separate stylus / pen digitizer (e.g. Kindle Scribe Wacom EMR) appears as /dev/input/event11.
+if [ -e /var/tmp/embrith-dev/input/stylus ] && ! grep -q "embrith-dev/input/stylus" "$R/init.kindle.rc"; then
+cat >> "$R/init.kindle.rc" <<'RC'
+
+# appended by the launcher (enter.sh): stylus digitizer
+on early-init
+    write /dev/input/event11 0
+    mount none /host/var/tmp/embrith-dev/input/stylus /dev/input/event11 bind
+    chown root input /dev/input/event11
+    chmod 0660 /dev/input/event11
 RC
 fi
 mkdir -p "$KD_BASE/data"

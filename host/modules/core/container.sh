@@ -277,7 +277,7 @@ cmd_start() {
   KD_PPI=$(hw_ppi); [ -n "$KD_PPI" ] && say "panel $KD_PANEL, $KD_PPI ppi" || say "WARNING: panel $KD_PANEL, model $(hw_devcode) not in conf/models.conf, the density of the image stays"
   say "starting Android (log: $LOGD/enter.log)"
   export KD_PANEL="$KD_PANEL" KD_PPI="$KD_PPI" KD_BINDER_VER="$KD_BINDER_VER"
-  export KD_BASE="$BASE" KD_SET="$SET" KD_WALL="$WALL" KD_IMG="$BASE/embrith.raw" KD_ROOT_OFF="$ROOT_OFF" KD_ROOT_LEN="$ROOT_LEN" KD_LOOP="$LOOP" KD_STAGE="$STAGE" KD_TOUCH_NAMES="$KD_TOUCH_NAMES"
+  export KD_BASE="$BASE" KD_SET="$SET" KD_WALL="$WALL" KD_IMG="$BASE/embrith.raw" KD_ROOT_OFF="$ROOT_OFF" KD_ROOT_LEN="$ROOT_LEN" KD_LOOP="$LOOP" KD_STAGE="$STAGE" KD_TOUCH_NAMES="$KD_TOUCH_NAMES" KD_STYLUS_NAMES="$KD_STYLUS_NAMES"
   # the subshell puts itself into the freezer group, then execs unshare: every process of the container is inherited into it
   sh -c 'echo $$ > "$1/tasks" 2>/dev/null; shift; exec "$@"' sh "$FZ" unshare -m -p -i -u -n -f --propagation private \
       sh "$MOD/lib/enter.sh" >> "$LOGD/enter.log" 2>&1 &
