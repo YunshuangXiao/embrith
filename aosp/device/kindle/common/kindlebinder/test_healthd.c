@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0
+/* SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Host unit tests for kindle_healthd (parcel layout, battery property sysfs parsing, dump format).
  * Copyright (C) 2026 Embrith contributors

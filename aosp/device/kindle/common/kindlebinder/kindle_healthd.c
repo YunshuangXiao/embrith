@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0
+/* SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Embrith - Native Binder v7 batteryproperties daemon (kindle_healthd)
  *
@@ -23,6 +23,14 @@
  *     syscalls and int main(int argc, char **argv).
  *   - FREESTANDING_ARM: zero-libc ARM32 svc #0 build for standalone tooling.
  *   - UNIT_TEST: exposes pure parcel/sysfs helpers without main() or _start.
+ *
+ * Provenance and references
+ *   Implemented from scratch for Embrith (no third-party source code copied).
+ *   Follows public ABI/wire specifications: Linux UAPI linux/android/binder.h
+ *   (Binder v7 32-bit ioctl/struct layouts), Linux power_supply sysfs class
+ *   attributes, and Android Binder IPC wire formats (IServiceManager,
+ *   IBatteryPropertiesRegistrar, IBatteryPropertiesListener,
+ *   BatteryProperties, BatteryProperty).
  */
 
 #ifndef _GNU_SOURCE

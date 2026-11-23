@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0
+/* SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Embrith - Kindle 32-bit Binder v7 to v8 ABI compatibility shim (libkindlebinder)
  *
@@ -31,8 +31,9 @@
  *   - UNIT_TEST: host-side unit test mode (excludes ioctl interception).
  *
  * Provenance and references
- *   - Wire struct layouts and ioctl numbers follow the Linux UAPI header
- *     linux/android/binder.h (Binder protocol v7 vs v8 / 32-bit vs 64-bit IPC).
+ *   Implemented from scratch for Embrith (no third-party source code copied).
+ *   Wire struct layouts and ioctl numbers follow the Linux UAPI header
+ *   linux/android/binder.h (Binder protocol v7 vs v8 / 32-bit vs 64-bit IPC).
  */
 
 #ifndef _GNU_SOURCE
