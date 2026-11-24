@@ -144,10 +144,13 @@ oom_guard() {
 protect_host() {
   # Android's reboot/shutdown path (android_reboot, also reached by init's "Security failure") first asks the kernel to
   # remount all filesystems read-only through /proc/sysrq-trigger. SysRq is global, a container does not isolate it:
-  # the whole Kindle ends up read-only until the next reboot. Switch SysRq off for the duration of the run.
-  cat /proc/sys/kernel/sysrq > "$ST/sysrq.saved" 2>/dev/null
-  echo 0 > /proc/sys/kernel/sysrq 2>/dev/null
-  [ "$(cat /proc/sys/kernel/sysrq 2>/dev/null)" = 0 ] || { die "cannot disable SysRq: refusing to start (Android could turn the Kindle's filesystems read-only)"; }
+  # the whole Kindle ends up read-only until the next reboot. Switch SysRq off for the duration of the run when present
+  # (kernels built without CONFIG_MAGIC_SYSRQ, e.g. Kindle Scribe 4.9.77, cannot trigger SysRq at all).
+  if [ -e /proc/sys/kernel/sysrq ]; then
+    cat /proc/sys/kernel/sysrq > "$ST/sysrq.saved" 2>/dev/null
+    echo 0 > /proc/sys/kernel/sysrq 2>/dev/null
+    [ "$(cat /proc/sys/kernel/sysrq 2>/dev/null)" = 0 ] || { die "cannot disable SysRq: refusing to start (Android could turn the Kindle's filesystems read-only)"; }
+  fi
   : > "$ST/oom.saved"
   # only the Kindle processes Embrith itself talks to (HOST_PROTECT and OOM_ADJ in conf/default.conf, no second copy here); kdispd and kgest start later and are guarded by container.sh
   for n in $HOST_PROTECT; do
@@ -169,7 +172,10 @@ protect_host() {
 }
 
 unprotect_host() {
-  [ -f "$ST/sysrq.saved" ] && { cat "$ST/sysrq.saved" > /proc/sys/kernel/sysrq 2>/dev/null; rm -f "$ST/sysrq.saved"; }
+  if [ -f "$ST/sysrq.saved" ]; then
+    [ -e /proc/sys/kernel/sysrq ] && cat "$ST/sysrq.saved" > /proc/sys/kernel/sysrq 2>/dev/null
+    rm -f "$ST/sysrq.saved"
+  fi
   [ -f "$ST/oom.saved" ] && while read -r p v n; do [ -n "$p" ] && echo "$v" > "/proc/$p/oom_score_adj" 2>/dev/null; done < "$ST/oom.saved"; rm -f "$ST/oom.saved"
   [ -f "$ST/core_pattern" ] && { cat "$ST/core_pattern" > /proc/sys/kernel/core_pattern 2>/dev/null; rm -f "$ST/core_pattern"; }
   if [ -f "$ST/readahead.saved" ]; then

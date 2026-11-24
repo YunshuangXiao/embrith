@@ -8,6 +8,7 @@
  *   kutil run-as <uid> <gid> <cmd> [args]  drop privileges, then exec (tests what a service start does)
  *   kutil tapd <event dev> [idle_s]       grab the touch screen, print "T x y" per finger lift and "I" every idle_s seconds (default 30)
  *   kutil panel                           print the panel size "W H" (read from the framebuffer)
+ *   kutil binder-ver <dev>                print the Binder protocol version reported by <dev>
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -27,6 +28,8 @@
 #include <sys/prctl.h>
 #include <linux/input.h>
 #include "panel.h"
+
+#define BINDER_VERSION _IOWR('b', 9, int32_t)
 
 static int write_str(const char* path, const char* s) {
     int fd = open(path, O_WRONLY);
@@ -146,6 +149,15 @@ int main(int argc, char** argv) {
         if (umount2(argv[2], MNT_DETACH) < 0) { perror("umount2"); return 1; }
         return 0;
     }
-    fprintf(stderr, "usage: kutil swap <dev> <MB> [prio] | swapoff <dev> | mkswap <file> <MB> | umount-lazy <path> | tapd <event dev> [idle_s] | panel\n");
+    if (argc >= 3 && !strcmp(argv[1], "binder-ver")) {
+        int fd = open(argv[2], O_RDWR | O_CLOEXEC);
+        if (fd < 0) { perror(argv[2]); return 1; }
+        int32_t ver = 0;
+        if (ioctl(fd, BINDER_VERSION, &ver) < 0) { perror("BINDER_VERSION"); close(fd); return 1; }
+        close(fd);
+        printf("%d\n", (int)ver);
+        return 0;
+    }
+    fprintf(stderr, "usage: kutil swap <dev> <MB> [prio] | swapoff <dev> | mkswap <file> <MB> | umount-lazy <path> | binder-ver <dev> | tapd <event dev> [idle_s] | panel\n");
     return 2;
 }

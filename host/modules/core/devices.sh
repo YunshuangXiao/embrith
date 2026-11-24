@@ -33,21 +33,86 @@ input_table() {
   ' /proc/bus/input/devices
 }
 
-# The touch screen is found by what the device reports, not by its name: a direct input device (INPUT_PROP_DIRECT, bit 1 of the
-# lowest PROP word) that has absolute axes. Our own virtual devices (embrith-*) are skipped.
-touch_node() {
-  awk '
+# Detect whether /proc/bus/input/devices (or a test fixture $1) uses 64-bit or 32-bit unsigned long bitmap words.
+# Linux input_bits_to_string() prints space-separated hex longs without zero-padding ("0" for empty lower words).
+input_dev_bits() {
+  _f=${1:-/proc/bus/input/devices}
+  if awk '/^B: /{ sub(/^B: [^=]*=/, ""); for (i = 1; i <= NF; i++) if (length($i) > 8) { f = 1; exit } } END { exit !f }' "$_f" 2>/dev/null; then
+    echo 64
+    return 0
+  fi
+  if [ "$_f" = /proc/bus/input/devices ]; then
+    case "$(uname -m 2>/dev/null)" in *64*) echo 64; return 0 ;; esac
+  fi
+  echo 32
+}
+
+# Pick either the capacitive multi-touch touchscreen ("touch") or a separate pen digitizer ("stylus").
+# Nibble positions stay invariant across unpadded lower words because each word is an unsigned long:
+#   INPUT_PROP_DIRECT (bit 1): last nibble of rightmost PROP word matches [2367abefABEF]
+#   ABS_MT_POSITION_X/Y (bits 53..54): nibble 13 of word 0 (64-bit) or nibble 5 of word 1 (32-bit) matches [67efEF]
+#   BTN_TOOL_PEN..PENCIL (bits 320..323): nibble 0 of KEY word 5 (64-bit) or word 10 (32-bit) is non-zero
+input_pick() {
+  _mode=$1
+  _skip=$2
+  _file=${3:-/proc/bus/input/devices}
+  _bits=$(input_dev_bits "$_file")
+  awk -v mode="$_mode" -v skip="$_skip" -v bits="$_bits" '
     function flush() {
-      if (!done && ev != "" && direct && abs && nm !~ /^embrith-/) { print "/dev/input/" ev; done = 1 }
-      ev = nm = ""; direct = abs = 0
+      if (ev != "" && nm !~ /^embrith-/) {
+        path = "/dev/input/" ev
+        if (mode == "touch") {
+          if (direct && mt && !pen && p1 == "") p1 = path
+          else if (mt && !pen && p2 == "")      p2 = path
+          else if (direct && mt && p3 == "")    p3 = path
+          else if (direct && abs && p4 == "")   p4 = path
+        } else if (mode == "stylus" && path != skip) {
+          if (direct && pen && abs && p1 == "")      p1 = path
+          else if (pen && abs && p2 == "")           p2 = path
+          else if (direct && abs && !mt && p3 == "") p3 = path
+        }
+      }
+      ev = nm = ""; direct = abs = mt = pen = 0
     }
     /^N: / { nm = $0; sub(/^N: Name="/, "", nm); sub(/"$/, "", nm) }
     /^H: / { h = $0; sub(/^H: Handlers=/, "", h); n = split(h, hv, " "); for (k = 1; k <= n; k++) if (hv[k] ~ /^event[0-9]+$/) ev = hv[k] }
-    /^B: PROP=/ { v = $0; sub(/^B: PROP=/, "", v); n = split(v, w, " "); c = substr(w[n], length(w[n])); direct = (c ~ /[2367abef]/) }
-    /^B: ABS=/ { v = $0; sub(/^B: ABS=/, "", v); abs = (v ~ /[1-9a-f]/) }
+    /^B: PROP=/ {
+      v = $0; sub(/^B: PROP=/, "", v); n = split(v, w, " ")
+      if (n >= 1) { c = substr(w[n], length(w[n]), 1); direct = (c ~ /[2367abefABEF]/) }
+    }
+    /^B: ABS=/ {
+      v = $0; sub(/^B: ABS=/, "", v); abs = (v ~ /[1-9a-fA-F]/)
+      n = split(v, w, " ")
+      if (n >= 1 && length(w[n]) >= 14) {
+        mt = (substr(w[n], length(w[n]) - 13, 1) ~ /[67efEF]/)
+      } else if (bits == 32 && n >= 2 && length(w[n - 1]) >= 6) {
+        mt = (substr(w[n - 1], length(w[n - 1]) - 5, 1) ~ /[67efEF]/)
+      }
+    }
+    /^B: KEY=/ {
+      v = $0; sub(/^B: KEY=/, "", v); n = split(v, w, " ")
+      kw = (bits == 64 && n >= 6) ? w[n - 5] : (bits == 32 && n >= 11) ? w[n - 10] : ""
+      if (kw != "") pen = (substr(kw, length(kw), 1) ~ /[1-9a-fA-F]/)
+    }
     NF == 0 { flush() }
-    END { flush() }
-  ' /proc/bus/input/devices
+    END {
+      flush()
+      if (p1 != "") print p1
+      else if (p2 != "") print p2
+      else if (p3 != "") print p3
+      else if (p4 != "") print p4
+    }
+  ' "$_file"
+}
+
+# Optional $1 overrides /proc/bus/input/devices for tests.
+touch_node() {
+  input_pick touch "" "$1"
+}
+
+# Find a separate pen/stylus digitizer node (excluding $1, the chosen raw touch node).
+stylus_node() {
+  input_pick stylus "$1" "$2"
 }
 
 touch_idc_names() {   # $1 = /dev/input/eventN -> "<name> Vendor_xxxx_Product_yyyy" (Android looks for <name>.idc, then the Vendor_ one)
@@ -91,13 +156,21 @@ make_devices() {
   # event0 / event2 (power button, cover sensor) are NOT given to Android: it would go to sleep by itself on the power key (screen off,
   # single-finger touch dropped) and powerd would never be asked to suspend. The Kindle side handles those (power_watch).
   # the touch screen always appears inside the container as /dev/input/event1 (init.kindle.rc binds that one)
+  TN_RAW=$(touch_node)
   TN=$(vtouch_node); [ -n "$TN" ] && say "touch is grabbed by kgest, Android gets embrith-touch"
-  [ -n "$TN" ] || TN=$(touch_node)
+  [ -n "$TN" ] || TN=$TN_RAW
   if [ -n "$TN" ]; then
     cp -a "$TN" "$DEVDIR/input/event1" && say "touch screen: $TN" || say "WARNING: cannot copy the touch node $TN"
     export KD_TOUCH_NAMES="$(touch_idc_names "$TN")"
   else
     say "WARNING: no touch screen found in /proc/bus/input/devices (Android will not react to touches)"
+  fi
+  SN=$(stylus_node "$TN_RAW")
+  if [ -n "$SN" ] && [ "$SN" != "$TN" ] && [ "$SN" != "$TN_RAW" ]; then
+    cp -a "$SN" "$DEVDIR/input/stylus" && say "stylus: $SN" || say "WARNING: cannot copy the stylus node $SN"
+    export KD_STYLUS_NAMES="$(touch_idc_names "$SN")"
+  else
+    export KD_STYLUS_NAMES=""
   fi
   KN=$(keys_node)
   if [ -n "$KN" ]; then cp -a "$KN" "$DEVDIR/input/keys" && say "virtual keys: $KN"; fi
