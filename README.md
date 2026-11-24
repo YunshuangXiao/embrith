@@ -1,13 +1,15 @@
 Embrith · 余烬 | Kindle 定制安卓系统
 =================================
 
+---
+
 <div class="readme-lang"><a href="README_EN.md">English</a> | <b>简体中文</b></div>
 
 <table class="readme-header">
 <tr>
 <td valign="middle"><img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith"></td>
-<td valign="middle">项目名来源: Embers and Rebirth<br>✨✨ 星火未灭, 余烬重生 ✨✨</td>
-<td valign="middle"><a href="https://yunshuangxiao.github.io/embrith/"><img src="https://img.shields.io/badge/docs-online-blue?cacheSeconds=3600" alt="Docs"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/yunshuangxiao/embrith?cacheSeconds=3600" alt="License"></a><br>[ <a href="https://yunshuangxiao.github.io/embrith/"><b>主页</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith"><b>源码</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/issues"><b>报错</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/discussions"><b>讨论</b></a> ]</td>
+<td valign="middle">项目名来源: Embers and Rebirth<br><br>✨✨ 星火未灭, 余烬重生 ✨✨</td>
+<td valign="middle"><a href="https://yunshuangxiao.github.io/embrith/"><img src="https://img.shields.io/badge/docs-online-blue?cacheSeconds=3600" alt="Docs"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/yunshuangxiao/embrith?cacheSeconds=3600" alt="License"></a><br><br>[ <a href="https://yunshuangxiao.github.io/embrith/"><b>主页</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith"><b>源码</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/issues"><b>报错</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/discussions"><b>讨论</b></a> ]</td>
 </tr>
 </table>
 

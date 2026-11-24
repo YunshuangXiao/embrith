@@ -34,6 +34,9 @@ sphinx:
       doc_path: gh-pages
       metatags: |
         <meta name="google-site-verification" content="WanrbQ8ku3mQnYbG4fJIxAHGiZaS8ZZ-i5Vk4QQl4BM" />
+        <meta name="description" content="Open-source Android 7.1.2 system for jailbroken Kindle e-readers. Install APKs and read on E Ink." />
+
+    html_title: "Embrith - Android for Kindle (open-source AOSP system)"
 
     html_meta:
       google-site-verification: "WanrbQ8ku3mQnYbG4fJIxAHGiZaS8ZZ-i5Vk4QQl4BM"
