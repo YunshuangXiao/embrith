@@ -214,3 +214,23 @@ div.button_nav_wrapper {
     color: #fff !important;
     text-decoration: none !important;
 }
+/*****************************************************************************/
+/* README header table: hide the README language line on the site (the
+ * language-switch button is used instead) and align all cells in the middle */
+.readme-lang {
+    display: none;
+}
+table.readme-header,
+table.readme-header tr,
+table.readme-header td {
+    border: none !important;
+    background: transparent !important;
+}
+table.readme-header td {
+    vertical-align: middle !important;
+    padding: 4px 12px !important;
+}
+table.readme-header img {
+    vertical-align: middle !important;
+    margin: 0 !important;
+}

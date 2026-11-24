@@ -1,9 +1,9 @@
 Embrith · 余烬 | Kindle 定制安卓系统
 =================================
 
-[English](README_EN.md) | **简体中文**
+<div class="readme-lang"><a href="README_EN.md">English</a> | <b>简体中文</b></div>
 
-<table>
+<table class="readme-header">
 <tr>
 <td valign="middle"><img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith"></td>
 <td valign="middle">项目名来源: Embers and Rebirth<br>✨✨ 星火未灭, 余烬重生 ✨✨</td>

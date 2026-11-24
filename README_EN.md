@@ -2,9 +2,9 @@
 
 ---
 
-[**English**](README_EN.md) | [简体中文](README.md)
+<div class="readme-lang"><b>English</b> | <a href="README.md">简体中文</a></div>
 
-<table>
+<table class="readme-header">
 <tr>
 <td valign="middle"><img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith"></td>
 <td valign="middle">Project name origin: Embers and Rebirth<br>✨✨ The spark lives on, rising anew from the embers. ✨✨</td>
