@@ -3,10 +3,13 @@ Embrith · 余烬 | Kindle 定制安卓系统
 
 [English](README_EN.md) | **简体中文**
 
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith">
-
-> 项目名来源: Embers and Rebirth
-> ✨✨ 星火未灭, 余烬重生 ✨✨
+<table>
+<tr>
+<td valign="middle"><img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith"></td>
+<td valign="middle">项目名来源: Embers and Rebirth<br>✨✨ 星火未灭, 余烬重生 ✨✨</td>
+<td valign="middle"><a href="https://yunshuangxiao.github.io/embrith/"><img src="https://img.shields.io/badge/docs-online-blue?cacheSeconds=3600" alt="Docs"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/yunshuangxiao/embrith?cacheSeconds=3600" alt="License"></a><br>[ <a href="https://yunshuangxiao.github.io/embrith/"><b>主页</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith"><b>源码</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/issues"><b>报错</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/discussions"><b>讨论</b></a> ]</td>
+</tr>
+</table>
 
 在越狱的 Kindle 上运行自编译的 Android 7.1.2 容器, 把墨水屏变成可以装 apk, 也能好好读书的安卓设备.
 
@@ -208,3 +211,8 @@ GPL-3.0-or-later, 见 LICENSE 文件. 引用项目和第三方组件的许可证
 如果您觉得 Embrith 很有用, 也考虑支持其开发.
 
 [![Sponsor](https://img.shields.io/badge/Sponsor-Embrith-pink?logo=githubsponsors)](https://paypal.me/embrith)
+
+
+
+[embrith-homepage]: https://yunshuangxiao.github.io/embrith/
+[embrith-src]: https://github.com/yunshuangxiao/embrith/

@@ -4,10 +4,13 @@
 
 [**English**](README_EN.md) | [简体中文](README.md)
 
-<img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith">
-
-> Project name origin: Embers and Rebirth  
-> ✨✨ The spark lives on, rising anew from the embers. ✨✨
+<table>
+<tr>
+<td valign="middle"><img src="https://raw.githubusercontent.com/yunshuangxiao/embrith/main/gh-pages/refs/logos/embrith_logo_horizontal.png" height="80" alt="Embrith"></td>
+<td valign="middle">Project name origin: Embers and Rebirth<br>✨✨ The spark lives on, rising anew from the embers. ✨✨</td>
+<td valign="middle"><a href="https://yunshuangxiao.github.io/embrith/"><img src="https://img.shields.io/badge/docs-online-blue?cacheSeconds=3600" alt="Docs"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/yunshuangxiao/embrith?cacheSeconds=3600" alt="License"></a><br>[ <a href="https://yunshuangxiao.github.io/embrith/"><b>Homepage</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith"><b>Source Code</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/issues"><b>Report A Bug</b></a> ] [ <a href="https://github.com/yunshuangxiao/embrith/discussions"><b>Discussions</b></a> ]</td>
+</tr>
+</table>
 
 Runs a self-built Android 7.1.2 container on a jailbroken Kindle, turning the E Ink screen into an Android device that can install APKs and is also good for reading.
 

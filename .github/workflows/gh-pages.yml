@@ -35,6 +35,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -44,73 +45,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: embrith-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check gh-pages changes
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-
-          if [ "$COMMIT_COUNT" -le 1 ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E "^gh-pages/|^README\.md$" || true)
-
-            if [ -n "$CHANGED" ]; then
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      - name: Skip if no changes
-        if: steps.changes.outputs.changed == 'false'
-        run: |
-          echo "No changes in gh-pages/, skipping deployment."
-          exit 0
-
       - name: Setup Python
-        if: steps.changes.outputs.changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install dependencies
-        if: steps.changes.outputs.changed == 'true'
         run: |
           pip install --upgrade pip
           pip install -r gh-pages/requirements.txt
 
       - name: Build gh-pages
-        if: steps.changes.outputs.changed == 'true'
-        run: |
-          jupyter-book build gh-pages
+        run: jupyter-book build gh-pages
 
       - name: Add Google Verification HTML
-        if: steps.changes.outputs.changed == 'true'
         run: |
           echo "google-site-verification: googlec9e4940b93eddd8a.html" > gh-pages/_build/html/googlec9e4940b93eddd8a.html
 
       - name: Upload artifact
-        if: steps.changes.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: gh-pages/_build/html
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
-        if: steps.changes.outputs.changed == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
