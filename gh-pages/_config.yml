@@ -32,8 +32,11 @@ sphinx:
       github_repo: embrith
       github_version: main
       doc_path: gh-pages
-      # metatags: |
-      #   <meta name="google-site-verification" content="JOXRioKAur8pUUQhyzmuJqKs79IpGF4JPq09mDUt7W8" />
+      metatags: |
+        <meta name="google-site-verification" content="WanrbQ8ku3mQnYbG4fJIxAHGiZaS8ZZ-i5Vk4QQl4BM" />
+
+    html_meta:
+      google-site-verification: "WanrbQ8ku3mQnYbG4fJIxAHGiZaS8ZZ-i5Vk4QQl4BM"
 
     html_show_sourcelink: false
 

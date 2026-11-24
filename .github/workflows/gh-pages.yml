@@ -99,10 +99,10 @@ jobs:
         run: |
           jupyter-book build gh-pages
 
-      # - name: Add Google Verification HTML
-      #   if: steps.changes.outputs.changed == 'true'
-      #   run: |
-      #     echo "google-site-verification: google8dc341396cd40e0e.html" > gh-pages/_build/html/google8dc341396cd40e0e.html
+      - name: Add Google Verification HTML
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          echo "google-site-verification: WanrbQ8ku3mQnYbG4fJIxAHGiZaS8ZZ-i5Vk4QQl4BM" > gh-pages/_build/html/googlec9e4940b93eddd8a.html
 
       - name: Upload artifact
         if: steps.changes.outputs.changed == 'true'
