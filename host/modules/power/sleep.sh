@@ -274,7 +274,9 @@ charging() {
 # SLEEP_MIN comes from conf_cache (IDLE_MIN), read again only when ctl/conf changes.
 idle_check() {
   [ -f "$ST/asleep" ] && return 0
-  m=${IDLE_MIN:-15}; [ "$m" -gt 0 ] || return 0
+  m=${IDLE_MIN:-15}
+  # never (0): our timer does not act, but powerd's own screensaver timer must still be kept from firing, so t1 is reset as well
+  [ "$m" -gt 0 ] || { t1_reset "$1"; return 0; }
   if [ -z "$IDLE0" ] || [ "$K_CTL/touchup" -nt "$ST/idle.mark" ] || [ "$ST/woke" -nt "$ST/idle.mark" ]; then IDLE0=$1; : > "$ST/idle.mark"; fi
   if [ $(( $1 - IDLE0 )) -ge $((m * 60)) ]; then
     IDLE0=$1; sleep_request "idle ${m} min"
