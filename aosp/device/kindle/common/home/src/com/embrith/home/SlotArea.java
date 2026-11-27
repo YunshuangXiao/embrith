@@ -30,6 +30,7 @@ final class SlotArea extends FrameLayout {
     private int contentH;   // the lowest edge of the slots
     private final List<CircleButton> btns = new ArrayList<CircleButton>();
     private final List<String> acts = new ArrayList<String>();
+    private String sig = "";   // signature() of what reload() built last
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refresh = new Runnable() {
         @Override public void run() { update(); }
@@ -55,6 +56,27 @@ final class SlotArea extends FrameLayout {
         reload();
     }
 
+    /** The ids and places of the widgets as one string: what the settings page for the widgets changes. */
+    private String signature() {
+        List<String> ids = set.order(a);
+        List<int[]> pos = set.place(a, ids, m);
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < ids.size(); i++) {
+            b.append(ids.get(i));
+            int[] p = pos.get(i);
+            if (p != null) b.append(':').append(p[0]).append(',').append(p[1]).append(',').append(p[2]).append(',').append(p[3]);
+            b.append(';');
+        }
+        return b.toString();
+    }
+
+    /** Builds the views again only when the widgets or their places changed (the page is shown again after the settings for the widgets): true then. */
+    boolean reloadIfChanged() {
+        if (m == null || signature().equals(sig)) return false;
+        reload();
+        return true;
+    }
+
     void reload() {
         removeAllViews();
         btns.clear();
@@ -73,6 +95,7 @@ final class SlotArea extends FrameLayout {
             contentH = Math.max(contentH, p[1] + p[3]);
             addView(SlotViews.build(a, set, ids.get(i), p[2], p[3], live, redraw, this), lp);
         }
+        sig = signature();
         if (!live && set.apps) {   // the apps take the rest of the page
             int y = contentH > 0 ? contentH + m.g : 0, total = m.height(m.rows) + m.g + m.h;
             FrameLayout box = Widgets.framed(a);

@@ -44,6 +44,12 @@ final class SettingsHomeBox extends ViewGroup {
         return area;
     }
 
+    /** The page is shown again: the widgets are built again when the settings for the widgets changed them, then the buttons look at the status. */
+    void refresh() {
+        if (area.reloadIfChanged()) requestLayout();
+        area.update();
+    }
+
     private static int exact(int px) {
         return MeasureSpec.makeMeasureSpec(Math.max(0, px), MeasureSpec.EXACTLY);
     }

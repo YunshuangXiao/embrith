@@ -156,7 +156,7 @@ public class HomeActivity extends LibraryActivity {
     /** In place switch to the desktop or the settings home: only the content that may have changed is drawn again. */
     @Override
     protected void pageShown(String id) {
-        if ("settings".equals(id)) settingsBox.area().update(); else loadWidgets();
+        if ("settings".equals(id)) settingsBox.refresh(); else loadWidgets();
     }
 
     /** BACK on the first library page or on the settings home: to the desktop. */
@@ -194,7 +194,7 @@ public class HomeActivity extends LibraryActivity {
             com.embrith.library.Screens.syncUsage(this);
             refresh();
         } else if ("settings".equals(pageId())) {
-            settingsBox.area().update();
+            settingsBox.refresh();
         }
         if (settingsBox == null) {
             // build the settings home while the desktop is idle: the first switch is then as fast as the next
