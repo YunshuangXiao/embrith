@@ -124,6 +124,8 @@ ctl_requests() {
   [ -f "$K_CTL/dexopt_start" ] && { rm -f "$K_CTL/dexopt_start"; ( dexopt_wait ) </dev/null >/dev/null 2>&1 & }
   [ -f "$K_CTL/webview_apply" ] && { rm -f "$K_CTL/webview_apply"; ( webview_apply ) </dev/null >/dev/null 2>&1 & }
   [ -f "$K_CTL/fulldirty_apply" ] && { rm -f "$K_CTL/fulldirty_apply"; ( fulldirty_apply ) </dev/null >/dev/null 2>&1 & }
+  if [ -f "$K_CTL/backup_export" ]; then v=$(head -n 1 "$K_CTL/backup_export" 2>/dev/null | tr -dc 'a-z0-9, '); rm -f "$K_CTL/backup_export"; ( . "$MOD/ui/backup.sh"; bk_export $v ) </dev/null >/dev/null 2>&1 & fi
+  if [ -f "$K_CTL/backup_import" ]; then v=$(head -n 1 "$K_CTL/backup_import" 2>/dev/null | tr -dc 'a-z0-9, '); rm -f "$K_CTL/backup_import"; ( . "$MOD/ui/backup.sh"; bk_import $v ) </dev/null >/dev/null 2>&1 & fi
   [ -f "$K_CTL/dns_apply" ] && { rm -f "$K_CTL/dns_apply"; ( dns_apply ) </dev/null >/dev/null 2>&1 & }
   [ -f "$K_CTL/ssh" ] && { rm -f "$K_CTL/ssh"; ssh_toggle; STAT_LAST=0; SDUE="$((${el:-0} + 3)) $((${el:-0} + 10))"; }
   [ -f "$K_CTL/ssh_clean" ] && { rm -f "$K_CTL/ssh_clean"; ssh_clean; }

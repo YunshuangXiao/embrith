@@ -156,6 +156,7 @@ final class CoverView {
         }
 
         @Override protected void onDraw(Canvas cv) {
+            band.setColor(Prefs.libAccent(getContext()));   // the theme color of the library (black unless the color display is on)
             float s = getWidth();
             float c1 = s * 0.40f, c2 = s * 0.88f;   // the band lies between the lines x - y = c1 and x - y = c2
             path.reset();

@@ -52,7 +52,8 @@ final class RingView extends View {
     }
 
     /** The shade of the ring for a progress: light at the start, black at the goal. */
-    static int shade(int pct) {
+    static int shade(int theme, int pct) {
+        if (theme != Color.BLACK) return pct >= 100 ? theme : com.embrith.home.Prefs.mix(theme, 0.35f + 0.65f * pct / 100f);   // the theme color of the library: a gradient to the goal
         if (pct >= 100) return Color.BLACK;
         if (pct >= 66) return 0xFF333333;
         if (pct >= 33) return 0xFF666666;
@@ -71,11 +72,12 @@ final class RingView extends View {
         paint.setStrokeCap(Paint.Cap.ROUND);
         float done = 288f * pct / 100f;
         // like the level bars: a thin line for what is left, a thicker bar for the part done (both with round ends)
-        paint.setColor(Color.BLACK);
+        int theme = com.embrith.home.Prefs.libAccent(getContext());
+        paint.setColor(theme);
         paint.setStrokeWidth(thin);
         cv.drawArc(box, 126 + done, 288 - done, false, paint);
         if (pct > 0) {
-            paint.setColor(shade(pct));
+            paint.setColor(shade(theme, pct));
             paint.setStrokeWidth(thick);
             cv.drawArc(box, 126, done, false, paint);
         }

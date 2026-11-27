@@ -82,6 +82,9 @@ public class ChoiceActivity extends Activity {
     private void mark() {
         if (rows == null) return;
         int cur = indexOf(ids, current());
-        for (int i = 0; i < rows.length; i++) rows[i].setValue(i == cur ? "✓" : "");
+        for (int i = 0; i < rows.length; i++) {
+            rows[i].setValue(i == cur ? "✓" : "");
+            rows[i].value.setTextColor(i == cur ? Prefs.accent(this) : android.graphics.Color.BLACK);
+        }
     }
 }

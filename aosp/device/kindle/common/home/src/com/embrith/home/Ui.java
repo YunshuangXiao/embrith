@@ -207,6 +207,7 @@ public final class Ui {
         private static void plain(android.app.AlertDialog d) {
             int[] ids = { android.content.DialogInterface.BUTTON_POSITIVE, android.content.DialogInterface.BUTTON_NEGATIVE,
                 android.content.DialogInterface.BUTTON_NEUTRAL };
+            accent(d, ids);
             for (int id : ids) {
                 android.widget.Button b = d.getButton(id);
                 if (b == null) continue;
@@ -241,6 +242,28 @@ public final class Ui {
             });
         }
 
+        /** The accent color (settings, display) also goes to the AOSP side of a dialog: the button texts and the input fields (underline, selection). */
+        private static void accent(android.app.AlertDialog d, int[] ids) {
+            int a = Prefs.accent(d.getContext());
+            if (a == Color.BLACK) return;   // black (or the color display off): the dialog theme already is black
+            for (int id : ids) {
+                android.widget.Button b = d.getButton(id);
+                if (b != null) b.setTextColor(a);
+            }
+            tintInputs(d.getWindow().getDecorView(), a);
+        }
+
+        private static void tintInputs(View v, int a) {
+            if (v instanceof android.widget.EditText) {
+                android.widget.EditText e = (android.widget.EditText) v;
+                e.setHighlightColor((a & 0xFFFFFF) | 0x55000000);
+                if (e.getBackground() != null) e.getBackground().mutate().setColorFilter(a, android.graphics.PorterDuff.Mode.SRC_ATOP);
+            } else if (v instanceof ViewGroup) {
+                ViewGroup g = (ViewGroup) v;
+                for (int i = 0; i < g.getChildCount(); i++) tintInputs(g.getChildAt(i), a);
+            }
+        }
+
         private static void sideBySide(android.app.AlertDialog d) {
             android.widget.Button p = d.getButton(android.content.DialogInterface.BUTTON_POSITIVE);
             android.widget.Button n = d.getButton(android.content.DialogInterface.BUTTON_NEGATIVE);
@@ -272,7 +295,7 @@ public final class Ui {
         t.setText(s);
         t.setTextColor(Color.BLACK);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        if (bold) t.getPaint().setFakeBoldText(true);
+        if (bold || "1".equals(Ctl.get("COLOR", "0"))) t.getPaint().setFakeBoldText(true);   // color display: thin strokes turn into gray edge pixels, so every text gets a heavier stroke
         return t;
     }
 
@@ -888,8 +911,38 @@ public final class Ui {
 
     // ------------------------------------------------------------------ 行
 
+    /** 整行可点的行: 手指拖动超过 slop*2 后取消按下状态, 横滑翻页或竖滑滚动都不会触发单击. */
+    static class TapRow extends LinearLayout {
+        private float downX, downY;
+        private boolean dragged;
+
+        TapRow(Context c) {
+            super(c);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_DOWN) {
+                downX = e.getX();
+                downY = e.getY();
+                dragged = false;
+            } else if (a == MotionEvent.ACTION_MOVE && !dragged) {
+                int s = android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop() * 2;
+                if (Math.abs(e.getX() - downX) > s || Math.abs(e.getY() - downY) > s) {
+                    dragged = true;
+                    MotionEvent c = MotionEvent.obtain(e);
+                    c.setAction(MotionEvent.ACTION_CANCEL);
+                    super.onTouchEvent(c);
+                    c.recycle();
+                }
+            }
+            return dragged || super.onTouchEvent(e);
+        }
+    }
+
     /** 设置行: 左标签, 右值(可选 ›), 按下显示圆角框. setValue 只改右侧文字.  */
-    public static final class Row extends LinearLayout {
+    public static final class Row extends TapRow {
         final TextView label, value;
         View chev;
 
@@ -1003,7 +1056,7 @@ public final class Ui {
             paint.setStrokeWidth(s);
             if (on) {
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(Color.BLACK);
+                paint.setColor(Prefs.accent(getContext()));
                 c.drawRoundRect(r, rad, rad, paint);
                 paint.setColor(Color.WHITE);
                 c.drawCircle(cx, cy, kr, paint);
@@ -1017,7 +1070,7 @@ public final class Ui {
     }
 
     /** 勾选框(Kindle 风格的方框 + 勾), 点整行切换; 回调给出新状态. enabled=false 时只显示, 不可点(属性不支持).  */
-    static final class CheckRow extends LinearLayout {
+    static final class CheckRow extends TapRow {
         private final View box;
         private boolean on;
         final TextView label;
@@ -1035,7 +1088,7 @@ public final class Ui {
                     p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(sw);
                     p.setStrokeCap(Paint.Cap.ROUND); p.setStrokeJoin(Paint.Join.ROUND);
                     cv.drawRoundRect(new RectF(sw, sw, w - sw, h - sw), dp(getContext(), 3), dp(getContext(), 3), p);
-                    p.setColor(isEnabled() ? Color.BLACK : Color.GRAY);   // the mark inside stays black
+                    p.setColor(isEnabled() ? Prefs.accent(getContext()) : Color.GRAY);   // the mark inside: the accent color (black unless the color display is on)
                     if (on && index > 0) {
                         p.setStyle(Paint.Style.FILL);
                         p.setTextSize(h * 0.62f);
@@ -1129,7 +1182,7 @@ public final class Ui {
     }
 
     /** 开关行: 点整行切换开关(行不反白), 回调给出新状态. setNote 在开关左侧放一段小字(如"未安装").  */
-    public static final class SwitchRow extends LinearLayout {
+    public static final class SwitchRow extends TapRow {
         final TextView label, note;
         final Toggle toggle;
 

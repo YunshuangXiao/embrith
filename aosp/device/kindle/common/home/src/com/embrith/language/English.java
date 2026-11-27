@@ -1078,5 +1078,47 @@ public final class English {
         p("设了壁纸并打开全局桌面应用时, 系统页面翻页改用局部刷新(只刷变化的文字, 不用翻页动画), 避免壁纸出现黑影; 没有壁纸时用翻页动画.", "When a wallpaper is set and the global desktop app is on, system page turns use partial refresh (only the changed text is refreshed, no page turn animation) to avoid dark shadows on the wallpaper; without a wallpaper the page turn animation is used.");
         p("一律用翻页动画.", "Always use the page turn animation.");
         p("一律不用翻页动画.", "Never use the page turn animation.");
+        // ---- AccentActivity, BackupActivity, theme color
+        p("黑色(默认)", "Black (default)");
+        p("红色", "Red");
+        p("橙色", "Orange");
+        p("绿色", "Green");
+        p("蓝色", "Blue");
+        p("紫色", "Purple");
+        p("跟随主题色(默认)", "Follow theme color (default)");
+        p("书库主题色", "Library theme color");
+        p("主题色", "Theme color");
+        p("自定义主题色", "Custom theme color");
+        p("书库主题色用于书库里封面的角标, 日历, 柱状图, 进度环和进度条. 只在开启彩色显示时生效. 自定义的色值格式是 #RRGGBB, 例如 #0050C8.", "The library theme color is used for the cover ribbon, calendar, bar chart, progress ring and progress bar in the library. It only applies while the color display is on. A custom value has the format #RRGGBB, for example #0050C8.");
+        p("主题色只在开启彩色显示时生效, 用于开关的开启状态, 选中项的标记, 以及弹窗里按钮的文字和输入框的下划线, 选中文字的底色. 自定义的色值格式是 #RRGGBB, 例如 #0050C8.", "The theme color only applies while the color display is on. It is used for the on state of switches, the marks of selected items, the button text and input underline in dialogs, and the background of selected text. A custom value has the format #RRGGBB, for example #0050C8.");
+        p("请输入 #RRGGBB 格式的色值", "Enter a color value in #RRGGBB format");
+        p("书库里封面角标, 日历, 柱状图, 进度环和进度条的颜色. 默认跟随设置里显示页的主题色, 也可以单独设置; 只在开启彩色显示时生效.", "Colors of the cover ribbon, calendar, bar chart, progress ring and progress bar in the library. It follows the theme color on the Display page by default, or you can set its own; it only applies while the color display is on.");
+        p("彩色显示", "Color display");
+        p("备份与恢复", "Backup and restore");
+        p("系统设置", "System settings");
+        p("显示设置", "Display settings");
+        p("桌面与个性化(含壁纸路径)", "Desktop and personalization (incl. wallpaper paths)");
+        p("桌面与个性化", "Desktop and personalization");
+        p("使用统计", "Usage statistics");
+        p("导出", "Export");
+        p("导入", "Import");
+        p("导入(最新的备份文件)", "Import (latest backup file)");
+        p("把勾选的类型打包到 embrith/backup/embrith-日期.tar, 连 USB 即可拷走.", "Packs the checked types into embrith/backup/embrith-DATE.tar; connect USB to copy it away.");
+        p("读取 embrith/backup 里最新的 embrith-*.tar, 只导入勾选且备份里有的类型. 导入前当前状态会先存成 pre-import-日期.tar.", "Reads the newest embrith-*.tar in embrith/backup and imports only the types that are checked and present in the backup. The current state is saved as pre-import-DATE.tar first.");
+        p("不含 SSH 项, 也不含应用数量和开发模式.", "Does not include the SSH items, the app count or developer mode.");
+        p("下次启动 Embrith 时生效.", "Takes effect the next time Embrith starts.");
+        p("只保存壁纸的路径, 不含图片本身.", "Only the wallpaper paths are saved, not the images themselves.");
+        p("端口, 登录方式, 密码哈希, 以及 /mnt/us/.ssh 里的密钥和 authorized_keys. 备份文件含这些内容, 请妥善保管.", "Port, login methods, password hash, and the keys and authorized_keys in /mnt/us/.ssh. The backup file contains these, so keep it safe.");
+        p("每本书的进度, 最近阅读, 书库文件夹和书籍信息缓存.", "Progress of each book, recent reading, library folders and the book info cache.");
+        p("应用使用时长, 以及阅读时长的完整记录(readlog).", "App usage time and the complete record of reading time (readlog).");
+        p("换设备或重装后", "After changing device or reinstalling");
+        p("先把 embrith/backup 里的 tar 放回新设备同一位置, 再全选导入, 最后重启 Embrith.", "First put the tar from embrith/backup back to the same place on the new device, then select all and import, and finally restart Embrith.");
+        p("没有勾选任何类型", "No type is checked");
+        p("正在导入...", "Importing...");
+        p("正在导出...", "Exporting...");
+        p("失败: ", "Failed: "); // fragment
+        p("已导入, 重启 Embrith 后全部生效", "Imported; everything takes effect after Embrith restarts");
+        p("已导出: ", "Exported: "); // fragment
+        p("宿主没有回应", "The host did not respond");
     }
 }

@@ -185,6 +185,7 @@ cmd_start() {
   app_count_refresh
   app_count_refresh
   app_count_refresh
+  [ -f "$SET/display.conf.import" ] && mv -f "$SET/display.conf.import" "$SET/display.conf"   # display.conf imported from a backup: kdispd rewrites the file when it exits, so it is put in place here
   "$RUNBIN/kdispd" --fbink "$FBINK" --conf "$SET/display.conf" --shots "$SHOTS" $SPLASH >> "$LOGD/kdispd.log" 2>&1 &
   icons_prepare
   lipc_props_detect

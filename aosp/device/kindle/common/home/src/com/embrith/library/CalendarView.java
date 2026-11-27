@@ -101,6 +101,8 @@ final class CalendarView extends View {
     @Override
     protected void onDraw(Canvas cv) {
         Context c = getContext();
+        int theme = com.embrith.home.Prefs.libAccent(c);
+        boolean themed = theme != Color.BLACK;   // the theme color of the library (the color display is on): gradients instead of grays
         int cw = getWidth() / 7;
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setStyle(Paint.Style.FILL);
@@ -123,13 +125,13 @@ final class CalendarView extends View {
                 boolean ap = appKey != null && appGoal > 0 && appMs(key(d)) >= appGoal;
                 if (rd || ap) {
                     paint.setStyle(Paint.Style.FILL);
-                    paint.setColor(0xFFD9D9D9);
+                    paint.setColor(themed ? com.embrith.home.Prefs.mix(theme, 0.25f) : 0xFFD9D9D9);
                     cv.drawCircle(cx, cy, r, paint);
                 }
                 if (isToday) {
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(Ui.dp(c, 2));
-                    paint.setColor(Color.BLACK);
+                    paint.setColor(theme);
                     cv.drawCircle(cx, cy, r, paint);
                 }
                 paint.setStyle(Paint.Style.FILL);
@@ -142,7 +144,7 @@ final class CalendarView extends View {
                     int n = (rd ? 1 : 0) + (ap ? 1 : 0);
                     float x = cx - (n - 1) * gap;
                     if (rd) {
-                        paint.setColor(Color.BLACK);
+                        paint.setColor(theme);
                         cv.drawCircle(x, dy, dr, paint);
                         x += 2 * gap;
                     }
@@ -156,16 +158,18 @@ final class CalendarView extends View {
                 RectF box = new RectF(cx - cw / 2f + pad, top + pad, cx + cw / 2f - pad, top + cellH - pad);
                 int lv = level(ms);
                 int[] shades = { 0xFFF4F4F4, 0xFFDDDDDD, 0xFFB0B0B0, 0xFF808080, 0xFF404040 };
+                float[] ts = { 0.05f, 0.25f, 0.5f, 0.75f, 1f };   // the gradient of the theme color: the more time, the deeper
+                if (themed) for (int k = 0; k < shades.length; k++) shades[k] = com.embrith.home.Prefs.mix(theme, ts[k]);
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(shades[lv]);
                 cv.drawRoundRect(box, Ui.dp(c, 6), Ui.dp(c, 6), paint);
                 if (isToday) {
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(Ui.dp(c, 2));
-                    paint.setColor(Color.BLACK);
+                    paint.setColor(theme);
                     cv.drawRoundRect(box, Ui.dp(c, 6), Ui.dp(c, 6), paint);
                 }
-                textColor = lv >= 3 ? Color.WHITE : Color.BLACK;
+                textColor = (themed ? com.embrith.home.Prefs.isDark(shades[lv]) : lv >= 3) ? Color.WHITE : Color.BLACK;
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(textColor);
                 paint.setTextSize(Ui.dp(c, 16));

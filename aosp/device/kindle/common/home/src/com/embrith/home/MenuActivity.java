@@ -213,7 +213,7 @@ public class MenuActivity extends Activity {
         if (tab == -1) { Dock.refresh(this, dockBar); applyWall(); }
         render();
         if (tab < 0 && cp != null) cp.start();
-        if (tab == -1 && homeBox != null) homeBox.area().update();
+        if (tab == -1 && homeBox != null) homeBox.refresh();
     }
 
     @Override
@@ -528,6 +528,13 @@ public class MenuActivity extends Activity {
             @Override public void toggled(boolean on) { Prefs.putStr(MenuActivity.this, "lib_parent", on ? "1" : "0"); }
         }));
 
+        if ("1".equals(Ctl.text("color_supported"))) {
+            g = section("书库主题色", "主题色\t书库里封面角标, 日历, 柱状图, 进度环和进度条的颜色. 默认跟随设置里显示页的主题色, 也可以单独设置; 只在开启彩色显示时生效.");
+            Ui.add(g, Ui.nav(this, "主题色", "", new View.OnClickListener() {
+                @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, AccentActivity.class).putExtra("key", "lib_accent")); }
+            }));
+        }
+
         g = section("TXT 章节", "章节正则\t自己写一个正则式, 书里的每一行(去掉行首行尾的空白)只要能匹配上就算章节标题; 对不上或少于两章时用自动检测. 改了以后重新打开书生效, 阅读位置可能偏移.\n\n"
             + "例子\t^\\s*第[0-9一二三四五六七八九十零〇百千两]+[章回节卷集部篇].{0,30}$");
         txtRow = Ui.nav(this, "章节正则", txtRegexShown(), new View.OnClickListener() {
@@ -603,9 +610,10 @@ public class MenuActivity extends Activity {
             "过滤阈值\t灰度不小于这个数的颜色按纯白显示, 数字越小, 过滤的范围越大. "
             + "注意: 阈值太小时, 浅灰色的图片细节和浅色文字会一起被过滤成白色而看不见; 阈值对所有选中的应用共用, 没选中的应用不受影响. "
             + "建议先用默认值, 底色仍发灰就调小, 图片发白就调大.");
-        if ("1".equals(Ctl.text("color_supported"))) Ui.add(g, Ui.switchRow(this, "彩色显示（KC）", "1".equals(Ctl.get("COLOR", "0")), new Ui.OnToggle() {
+        if ("1".equals(Ctl.text("color_supported"))) Ui.add(g, Ui.switchRow(this, "彩色显示", "1".equals(Ctl.get("COLOR", "0")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Ctl.set("COLOR", on ? "1" : "0"); }
         }));
+        if ("1".equals(Ctl.text("color_supported"))) Ui.add(g, Ui.nav(this, "主题色", "", open(AccentActivity.class)));
         Ui.add(g, Ui.nav(this, "色温设置", "", open(AmberScheduleActivity.class)));
         Ui.add(g, Ui.switchRow(this, "反色显示", "1".equals(Ctl.get("INVERT", "0")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Ctl.set("INVERT", on ? "1" : "0"); }
@@ -753,6 +761,7 @@ public class MenuActivity extends Activity {
         verRow = Ui.row(this, "Embrith 版本", "", null);
         Ui.add(g, verRow);
         Ui.add(g, Ui.nav(this, "检查更新", "", open(NetUpdateActivity.class)));
+        Ui.add(g, Ui.nav(this, "备份与恢复", "", open(BackupActivity.class)));
         Ui.add(g, Ui.nav(this, "关于 Embrith", "", new View.OnClickListener() {
             @Override public void onClick(View v) {
                 new Ui.Builder(MenuActivity.this)
