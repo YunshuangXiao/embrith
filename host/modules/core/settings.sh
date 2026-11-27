@@ -54,9 +54,9 @@ set_put() {                       # KEY VALUE (memory only, marks the table dirt
 }
 set_flush() {                     # memory -> $SET/custom.conf, only when dirty
   set_lock
-  if [ -f "$SET_DIRTY" ]; then
+  if [ -f "$SET_DIRTY" ]; then   # the group ends with true: grep exits 1 when there is no SSH_ line, which skipped the mv and left only custom.conf.tmp
     [ -f "$SET_FILE" ] && cp "$SET_FILE" "$SET_FILE.bak" 2>/dev/null
-    { cat "$SET_MEM"; grep '^SSH_' "$SET_FILE" 2>/dev/null; } > "$SET_FILE.tmp" && mv "$SET_FILE.tmp" "$SET_FILE" && rm -f "$SET_DIRTY"
+    { cat "$SET_MEM"; grep '^SSH_' "$SET_FILE" 2>/dev/null; true; } > "$SET_FILE.tmp" && mv "$SET_FILE.tmp" "$SET_FILE" && rm -f "$SET_DIRTY"
   fi
   set_unlock
 }
