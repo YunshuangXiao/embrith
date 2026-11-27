@@ -10,8 +10,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
@@ -97,10 +95,7 @@ final class Img {
             float scale = Math.max((float) w / src.getWidth(), (float) h / src.getHeight());
             float dw = src.getWidth() * scale;
             float dh = src.getHeight() * scale;
-            Paint p = new Paint(Paint.FILTER_BITMAP_FLAG);
-            ColorMatrix cm = new ColorMatrix();
-            cm.setSaturation(0);
-            p.setColorFilter(new ColorMatrixColorFilter(cm));
+            Paint p = new Paint(Paint.FILTER_BITMAP_FLAG);   // no gray filter: colors stay, the HWC turns the frame into gray when the panel needs it
             c.drawBitmap(src, null, new RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), p);
             src.recycle();
             if (fade > 0) c.drawColor(Color.argb(fade * 255 / 100, 255, 255, 255));   // 褪色：盖一层半透明白

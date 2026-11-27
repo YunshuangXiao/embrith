@@ -30,9 +30,8 @@ ui_pause() {
         lipc-set-prop -s com.lab126.blanket unload splash 2>/dev/null; lipc-set-prop -s com.lab126.blanket unload screensaver 2>/dev/null   # KOReader frameworkStopped()
         stop lab126_gui >/dev/null 2>&1; usleep 1250000 2>/dev/null || sleep 2   # KOReader: wait for the framework teardown
         killall -STOP awesome 2>/dev/null   # awesome survives the stop and draws the Kindle's own USB page; volumd keeps running (MTP needs it)
-        if [ "$(cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null)" = 32 ] && initctl status x 2>/dev/null | grep -q start/; then
-          stop x >/dev/null 2>&1 && : > "$ST/x_stopped"
-        fi
+        # x stays running on purpose: on the Colorsoft (FW 5.18.6) com.lab126.blanket disappears once x is stopped, powerd then
+        # logs "Splash screen is on. Ignoring power button" and sleep does nothing (on-device test; the cause is not proven)
         echo stop > "$ST/ui_paused"; say "Kindle framework stopped (lab126_gui)"
       elif initctl status lab126_gui 2>/dev/null | grep -q stop/; then
         # already stopped (an earlier session or a test left it so): the same state as after our own stop. Pause would leave nobody to

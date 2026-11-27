@@ -190,6 +190,7 @@ static void put_gray(uint8_t *row, unsigned x, uint8_t v) {
 static void copy_gray(uint8_t *dst, const uint8_t *src, unsigned count) {
     for (unsigned x = 0; x < count; ++x) put_gray(dst, x, src[x]);
 }
+static uint8_t px_gray(const uint8_t *p) { return (uint8_t)((p[0] * 77u + p[1] * 150u + p[2] * 29u) >> 8); }   /* same weights as the HWC */
 
 static void blit(uint8_t* fb, unsigned fbstride, const uint8_t* src, const struct rect* r, int dither) {
     if (color_enabled && rgb_plane && fb_bytes == 4) {
@@ -441,6 +442,7 @@ struct mtk_marker { uint32_t update_marker, collision_test; };
 #define MTK_WFM_GL16 3u
 #define MTK_WFM_REAGL 4u
 #define MTK_WFM_A2 6u
+static int g_force_partial;        /* 1 while the soft keyboard is up on a color panel: no update is promoted to a full-mode (flashing) one */
 static int g_fbfd = -1;
 static int g_direct = -1;          /* -1 not tried yet, 1 works, 0 failed or disabled (fbink is used) */
 static uint32_t g_marker;
@@ -454,7 +456,7 @@ static int mtk_update_region(const struct rect* r, const char* mode, int flash) 
     if (x + w > g_panel_w) w = g_panel_w - x;
     if (y + h > g_panel_h) h = g_panel_h - y;
     if (w <= 1 || h <= 1) return 1;                 /* tiny regions may upset the driver (KOReader skips them too) */
-    unsigned wfm = fb_bytes == 4 ? 257u : mtk_wfm(mode);
+    unsigned wfm = fb_bytes == 4 ? (!strcmp(mode, "DU") ? MTK_WFM_DU : 257u) : mtk_wfm(mode);
     // /* like KOReader: a flashing update waits until the previous one was submitted; GC16, REAGL and a full-screen flash wait until it is done */
     // if (g_marker && flash) { uint32_t m = g_marker; ioctl(g_fbfd, MTK_WAIT_SUBMISSION, &m); }
     // if (g_marker && (wfm == MTK_WFM_REAGL || wfm == MTK_WFM_GC16 || (flash && w == g_panel_w && h == g_panel_h))) {
@@ -464,7 +466,7 @@ static int mtk_update_region(const struct rect* r, const char* mode, int flash) 
     struct mtk_update u; memset(&u, 0, sizeof u);
     u.update_region.top = y; u.update_region.left = x; u.update_region.width = w; u.update_region.height = h;
     u.waveform_mode = wfm;
-    u.update_mode = (flash || (fb_bytes == 4 && w == g_panel_w && h == g_panel_h) || wfm == MTK_WFM_REAGL) ? 1 : 0;     /* REAGL is always a full-mode update: it drives every pixel and cleans the ghosts, without a visible flash */
+    u.update_mode = (flash || (fb_bytes == 4 && !g_force_partial && w == g_panel_w && h == g_panel_h) || wfm == MTK_WFM_REAGL) ? 1 : 0;     /* REAGL is always a full-mode update: it drives every pixel and cleans the ghosts, without a visible flash */
     if (++g_marker == 0) g_marker = 1;
     u.update_marker = g_marker;
     u.temp = 4096;                                  /* TEMP_USE_AMBIENT */
@@ -631,11 +633,11 @@ static int save_png(const char* path, const uint8_t* g, unsigned w, unsigned h) 
 #define BAR_Y (g_panel_h - 230)   /* near the bottom, 230 px above the edge (make-assets.py keeps the name clear of it) */
 static int bar_x0, bar_w;   /* same width as the visible part of the picture (splash_bounds); the defaults are set in main */
 /* the visible width of the logo: the columns that have dark pixels above the bar. Without a picture the default stays. */
-static void splash_bounds(const uint8_t* img) {
+static void splash_bounds(const uint8_t* img, unsigned bpp) {
     int minx = g_panel_w, maxx = -1;
     for (int y = 0; y < BAR_Y - 8; y++) {
-        const uint8_t* row = img + (size_t)y * g_panel_w;
-        for (int x = 0; x < g_panel_w; x++) if (row[x] < 0xe0) { if (x < minx) minx = x; if (x > maxx) maxx = x; }
+        const uint8_t* row = img + (size_t)y * g_panel_w * bpp;
+        for (int x = 0; x < g_panel_w; x++) if ((bpp == 1 ? row[x] : px_gray(row + (size_t)x * 4)) < 0xe0) { if (x < minx) minx = x; if (x > maxx) maxx = x; }
     }
     if (maxx - minx >= 100) { bar_x0 = minx; bar_w = maxx - minx + 1; }
 }
@@ -659,13 +661,29 @@ static void splash_bar(uint8_t* fb, unsigned stride, int pct) {
         }
     }
 }
-static uint8_t* load_raw(const char* path) {        /* a full-screen 8-bit gray picture of exactly the panel size, else it is ignored */
+/* a full-screen picture of exactly the panel size: 8-bit gray (W*H bytes, *bpp = 1) or RGBA (W*H*4 bytes, R G B A, *bpp = 4), else it is ignored */
+static uint8_t* load_raw(const char* path, unsigned* bpp) {
     if (!path) return NULL;
-    struct stat st; if (stat(path, &st) != 0 || (unsigned long long)st.st_size != (unsigned long long)g_panel_w * g_panel_h) return NULL;
+    unsigned long long n1 = (unsigned long long)g_panel_w * g_panel_h;
+    struct stat st; if (stat(path, &st) != 0) return NULL;
+    unsigned long long n = (unsigned long long)st.st_size == n1 ? n1 : (unsigned long long)st.st_size == n1 * 4 ? n1 * 4 : 0;
+    if (!n) return NULL;
     FILE* f = fopen(path, "rb"); if (!f) return NULL;
-    uint8_t* b = malloc((size_t)g_panel_w * g_panel_h);
-    if (b && fread(b, 1, (size_t)g_panel_w * g_panel_h, f) != (size_t)g_panel_w * g_panel_h) { free(b); b = NULL; }
-    fclose(f); return b;
+    uint8_t* b = malloc((size_t)n);
+    if (b && fread(b, 1, (size_t)n, f) != (size_t)n) { free(b); b = NULL; }
+    fclose(f);
+    if (b) *bpp = n == n1 ? 1 : 4;
+    return b;
+}
+/* draws a loaded picture over the whole frame buffer; an RGBA picture keeps its colors only on a color panel with color switched on */
+static void draw_raw(uint8_t* fb, unsigned fbstride, const uint8_t* img, unsigned bpp, int color) {
+    for (unsigned y = 0; y < g_panel_h; y++) {
+        uint8_t* dst = fb + (size_t)y * fbstride;
+        const uint8_t* src = img + (size_t)y * g_panel_w * bpp;
+        if (bpp == 1) copy_gray(dst, src, g_panel_w);
+        else if (color && fb_bytes == 4) memcpy(dst, src, (size_t)g_panel_w * 4);
+        else for (unsigned x = 0; x < g_panel_w; ++x) put_gray(dst, x, px_gray(src + (size_t)x * 4));
+    }
 }
 static int read_int_file(const char* path, int def) {
     FILE* f = fopen(path, "r"); if (!f) return def;
@@ -845,17 +863,18 @@ int main(int argc, char** argv) {
     unlink(ctlprog);
     /* "returning to Kindle" page: embrith.sh creates ctl/exiting as the first step of leaving Android. The page is drawn at once and stays
      * on the panel (the Kindle UI repaints it when it is back); the old Kindle page is NOT restored over it. */
-    uint8_t* exitpage = load_raw(exit_file); int exiting = 0; double last_exitcheck = 0;
+    unsigned exit_bpp = 1, restart_bpp = 1, splash_bpp = 1;
+    uint8_t* exitpage = load_raw(exit_file, &exit_bpp); int exiting = 0; double last_exitcheck = 0;
     char ctlexiting[300]; snprintf(ctlexiting, sizeof ctlexiting, "%s/exiting", ctl);
     unlink(ctlexiting);
     /* "restarting" page: ctl/restarting is created when a restart is requested from Android. Same handling as the exit page. */
-    uint8_t* restartpage = load_raw(restart_file);
+    uint8_t* restartpage = load_raw(restart_file, &restart_bpp);
     char ctlrestarting[300]; snprintf(ctlrestarting, sizeof ctlrestarting, "%s/restarting", ctl);
     unlink(ctlrestarting);
-    splash = load_raw(splash_file);
+    splash = load_raw(splash_file, &splash_bpp);
     if (splash) {
-        for (unsigned y = 0; y < g_panel_h; y++) copy_gray(fb + (size_t)y * fbstride, splash + (size_t)y * g_panel_w, g_panel_w);
-        splash_bounds(splash);
+        draw_raw(fb, fbstride, splash, splash_bpp, cf.color);
+        splash_bounds(splash, splash_bpp);
         splash_bar(fb, fbstride, 0);
         refresh_region(&full, "GC16", 1);
         splash_active = 1; splash_pct = 0; splash_t0 = now_ms(); last_prog = splash_t0; repaint = 0;
@@ -865,6 +884,7 @@ int main(int argc, char** argv) {
     unsigned pages = 0; double last_page = -10000; int fo_pending = 0; double last_flash = -10000;
     int ov_open = 0; struct rect ov_bars[MAXBANDS + 1]; int ov_nbars = 0;
     unsigned kbd_h = 0; double kbd_t = -10000;
+    double repaint_hold = 0; int color_flip = 0;   /* a change of the look (contrast, ...) is repainted only when it has been quiet for 500 ms; a switch of color mode needs the full-mode update */
     struct rect torn_r = {0, 0, 0, 0}; int torn_have = 0;
     g_prev = calloc((size_t)g_panel_w * g_panel_h, 1);
 
@@ -874,12 +894,12 @@ int main(int argc, char** argv) {
         if (reap_fbink() && !repaint) repaint = 2;          /* a refresh was lost: the next variant starts with a full flashing redraw */
         if ((exitpage || restartpage) && !exiting && t - last_exitcheck >= 100) {
             last_exitcheck = t;
-            const uint8_t* pg = NULL;
-            if (exitpage && access(ctlexiting, F_OK) == 0) pg = exitpage;
-            else if (restartpage && access(ctlrestarting, F_OK) == 0) pg = restartpage;
+            const uint8_t* pg = NULL; unsigned pg_bpp = 1;
+            if (exitpage && access(ctlexiting, F_OK) == 0) { pg = exitpage; pg_bpp = exit_bpp; }
+            else if (restartpage && access(ctlrestarting, F_OK) == 0) { pg = restartpage; pg_bpp = restart_bpp; }
             if (pg) {
                 exiting = 1; splash_active = 0;
-                for (unsigned y = 0; y < g_panel_h; y++) copy_gray(fb + (size_t)y * fbstride, pg + (size_t)y * g_panel_w, g_panel_w);
+                draw_raw(fb, fbstride, pg, pg_bpp, cf.color);
                 refresh_region(&full, "GC16", 1);
                 printf("exit page shown\n"); fflush(stdout);
             }
@@ -894,11 +914,12 @@ int main(int argc, char** argv) {
                 struct conf n = cf; conf_load(&n, ctlconf);
                 if (!color_supported) n.color = 0;
                 int look = n.color != cf.color || n.contrast != cf.contrast || n.invert != cf.invert || n.dither != cf.dither || (g_white && n.white_at != cf.white_at);
+                int flip = n.color != cf.color;
                 cf = n; color_enabled = cf.color; conf_mt = m; build_lut(&cf);
                 if (persist) conf_save(&cf, persist, 0644);
-                if (look) repaint = 1;               /* the screen has to be redrawn with the new table */
-                printf("conf: contrast %.1f dither %d local %s invert %d gestures %d flash-every %u flash-only %d\n",
-                       cf.contrast, cf.dither, wfm_name(cf.local_wfm), cf.invert, cf.gestures, cf.flash_every, cf.flash_only);
+                if (look) { repaint = 1; repaint_hold = t + 500; if (flip) color_flip = 1; }   /* the screen has to be redrawn with the new table */
+                printf("conf: contrast %.1f dither %d local %s invert %d gestures %d flash-every %u flash-only %d color %d\n",
+                       cf.contrast, cf.dither, wfm_name(cf.local_wfm), cf.invert, cf.gestures, cf.flash_every, cf.flash_only, cf.color);
             }
             {   /* ctl/white: written by the launcher when a chosen app comes to the front (1) or goes away (0) */
                 int w = 0; FILE* wf = fopen(ctlwhite, "r");
@@ -963,9 +984,13 @@ int main(int argc, char** argv) {
         }
 
         /* ---- redraw everything: after a table change (grayscale refresh) or on request (flashing, removes ghosting) ---- */
-        if (repaint && !frozen && !(seq & 1)) {
+        if (repaint && !frozen && !(seq & 1) && (repaint == 2 || t >= repaint_hold)) {
             blit(fb, fbstride, sdata, &full, cf.dither); track(sdata, &full);
+            /* color panel, only the shades changed (contrast, invert, dither): a local-mode update of the whole panel, no flash. A switch of the
+             * color mode, or a clear that was asked for, keeps the full-mode update. */
+            g_force_partial = color_enabled && fb_bytes == 4 && repaint == 1 && !color_flip;
             refresh_region(&full, "GC16", repaint == 2);
+            g_force_partial = 0; color_flip = 0;
             if (repaint == 2) n_clear++;
             repaint = 0; settle_needed = 0; last_refresh = last_spawn = now_ms(); ov_open = 0;
             acked = seq; __atomic_store_n(&hdr->ack, acked, __ATOMIC_RELEASE);
@@ -982,8 +1007,61 @@ int main(int argc, char** argv) {
                 continue;
             }
             if (color_enabled && fb_bytes == 4) {
+                { unsigned h = kbd_height(ctlkbd); if (h) { kbd_h = h; kbd_t = t; } else if (t - kbd_t > 1000) kbd_h = 0; }
+                if (kbd_h > 0) {
+                    /* soft keyboard up (ctl/kbd): only the pixels that really changed, as small local updates, never one for the whole panel
+                     * (that would flash). Inside the keyboard the black/white waveform, above it the usual one. No page turn animation. */
+                    struct rect kb_bands[MAXBANDS + 3];
+                    int nkb = split_dirty(sdata, &r, kb_bands);
+                    if (nkb == 0) { acked = seq; __atomic_store_n(&hdr->ack, acked, __ATOMIC_RELEASE); continue; }
+                    unsigned kb_top = g_panel_h - kbd_h;
+                    for (int i = 0, n0 = nkb; i < n0 && nkb < MAXBANDS + 3; i++)    /* a band across the top of the keyboard: one band above it, one inside */
+                        if (kb_bands[i].y + 8 < kb_top && kb_bands[i].y + kb_bands[i].h > kb_top + 8) {
+                            kb_bands[nkb] = kb_bands[i]; kb_bands[nkb].y = kb_top; kb_bands[nkb].h = kb_bands[i].y + kb_bands[i].h - kb_top;
+                            kb_bands[i].h = kb_top - kb_bands[i].y; nkb++;
+                        }
+                    for (int i = 0; i < nkb; i++) blit(fb, fbstride, sdata, &kb_bands[i], 0);
+                    if (__atomic_load_n(&hdr->seq, __ATOMIC_ACQUIRE) != seq) { retries++; continue; }     /* torn: g_prev is untouched, the bands are found again */
+                    g_force_partial = 1;
+                    for (int i = 0; i < nkb; i++) refresh_region(&kb_bands[i], kb_bands[i].y + 8 >= kb_top ? "DU" : "GC16", 0);
+                    g_force_partial = 0;
+                    for (int i = 0; i < nkb; i++) track(sdata, &kb_bands[i]);
+                    acked = seq; __atomic_store_n(&hdr->ack, acked, __ATOMIC_RELEASE);
+                    last_spawn = last_refresh = t; settle_needed = 0; continue;
+                }
+                if (r.w == g_panel_w && r.h == g_panel_h) {
+                    /* the whole window was invalidated, but a full-panel update flashes on the color panel: when little really changed (a slider, a
+                     * switch, a clock) only the changed bands are sent, as local updates. A page turn, or a change of more than 30% of the
+                     * panel, keeps the one update for the whole rectangle. */
+                    char lh = turn_hint(ctlturn);
+                    struct rect lb[MAXBANDS + 3];
+                    int nl = (lh == 'n' || lh == 'p' || lh == 'N' || lh == 'P') ? 0 : split_dirty(sdata, &r, lb);
+                    unsigned long la = 0;
+                    for (int i = 0; i < nl; i++) la += (unsigned long)lb[i].w * lb[i].h;
+                    if (nl > 0 && la * 100 < (unsigned long)g_panel_w * g_panel_h * 30) {
+                        for (int i = 0; i < nl; i++) blit(fb, fbstride, sdata, &lb[i], 0);
+                        if (__atomic_load_n(&hdr->seq, __ATOMIC_ACQUIRE) != seq) { retries++; continue; }
+                        g_force_partial = 1;
+                        for (int i = 0; i < nl; i++) refresh_region(&lb[i], "GC16", 0);
+                        g_force_partial = 0;
+                        for (int i = 0; i < nl; i++) track(sdata, &lb[i]);
+                        acked = seq; __atomic_store_n(&hdr->ack, acked, __ATOMIC_RELEASE);
+                        last_spawn = last_refresh = t; settle_needed = 0; continue;
+                    }
+                }
                 blit(fb,fbstride,sdata,&r,0);
                 if (__atomic_load_n(&hdr->seq,__ATOMIC_ACQUIRE)!=seq) { repaint=1; retries++; continue; }
+                {   /* diag: count non-gray pixels in the dirty rect of the RGBA plane, log every 10th frame */
+                    static unsigned color_diag_n;
+                    if ((color_diag_n++ % 10) == 0) {
+                        unsigned long nongray = 0, total = (unsigned long)r.w * r.h;
+                        for (unsigned y = r.y; y < r.y + r.h; ++y) {
+                            const uint8_t* q = rgb_plane + ((size_t)y * g_panel_w + r.x) * 4;
+                            for (unsigned x = 0; x < r.w; ++x, q += 4) if (q[0] != q[1] || q[1] != q[2]) nongray++;
+                        }
+                        printf("color diag: flags %u rect %ux%u+%u+%u nongray %lu of %lu\n", (unsigned)hdr->flags, r.w, r.h, r.x, r.y, nongray, total);
+                    }
+                }
                 char hint = turn_hint(ctlturn);
                 int animate = cf.page_anim && !g_noanim && !fresh_file(ctlnoswipe,1500) &&
                     (hint == 'n' || hint == 'p' || hint == 'N' || hint == 'P') &&
