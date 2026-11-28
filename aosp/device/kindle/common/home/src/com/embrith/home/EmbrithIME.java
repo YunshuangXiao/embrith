@@ -429,6 +429,7 @@ public class EmbrithIME extends InputMethodService {
             p.setTextAlign(Paint.Align.LEFT);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.BLACK);
+            p.setFakeBoldText(true);                             // bold black labels: thin gray strokes wash out on the color panel
             if (stripH() > 0) {                                  // the letters typed so far
                 p.setTextSize(Ui.dp(EmbrithIME.this, 16));
                 c.drawText(composing.toString(), Ui.dp(EmbrithIME.this, 10), toolH() + Ui.dp(EmbrithIME.this, 20), p);

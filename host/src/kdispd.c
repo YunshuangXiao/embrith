@@ -890,7 +890,7 @@ int main(int argc, char** argv) {
     unsigned n_fast = 0, n_slow = 0, n_settle = 0, n_local = 0, n_clear = 0, n_flash = 0, retries = 0;
     unsigned pages = 0; double last_page = -10000; int fo_pending = 0; double last_flash = -10000;
     int ov_open = 0; struct rect ov_bars[MAXBANDS + 1]; int ov_nbars = 0;
-    unsigned kbd_h = 0; double kbd_t = -10000;
+    unsigned kbd_h = 0; double kbd_t = -10000; int kb_was = 0;
     double repaint_hold = 0; int color_flip = 0;   /* a change of the look (contrast, ...) is repainted only when it has been quiet for 500 ms; a switch of color mode needs the full-mode update */
     struct rect torn_r = {0, 0, 0, 0}; int torn_have = 0;
     g_prev = calloc((size_t)g_panel_w * g_panel_h, 1);
@@ -1014,7 +1014,8 @@ int main(int argc, char** argv) {
                 continue;
             }
             if (color_enabled && fb_bytes == 4) {
-                { unsigned h = kbd_height(ctlkbd); if (h) { kbd_h = h; kbd_t = t; } else if (t - kbd_t > 1000) kbd_h = 0; }
+                int kb_fast;      /* 1 while the keyboard stays up: its keys use the fast waveform; the frames where it appears or goes away use GC16 */
+                { unsigned h = kbd_height(ctlkbd); if (h) { kbd_h = h; kbd_t = t; } else if (t - kbd_t > 1000) kbd_h = 0; kb_fast = h != 0 && kb_was; kb_was = h != 0; }
                 if (kbd_h > 0) {
                     /* soft keyboard up (ctl/kbd): only the pixels that really changed, as small local updates, never one for the whole panel
                      * (that would flash). Inside the keyboard the black/white waveform, above it the usual one. No page turn animation. */
@@ -1030,7 +1031,7 @@ int main(int argc, char** argv) {
                     for (int i = 0; i < nkb; i++) blit(fb, fbstride, sdata, &kb_bands[i], 0);
                     if (__atomic_load_n(&hdr->seq, __ATOMIC_ACQUIRE) != seq) { retries++; continue; }     /* torn: g_prev is untouched, the bands are found again */
                     g_force_partial = 1;
-                    for (int i = 0; i < nkb; i++) refresh_region(&kb_bands[i], kb_bands[i].y + 8 >= kb_top ? "DU" : "GC16", 0);
+                    for (int i = 0; i < nkb; i++) refresh_region(&kb_bands[i], kb_bands[i].y + 8 >= kb_top && kb_fast ? "DU" : "GC16", 0);
                     g_force_partial = 0;
                     for (int i = 0; i < nkb; i++) track(sdata, &kb_bands[i]);
                     acked = seq; __atomic_store_n(&hdr->ack, acked, __ATOMIC_RELEASE);
