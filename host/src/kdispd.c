@@ -584,7 +584,7 @@ static int reap_fbink(void) {
     return changed;
 }
 
-/* ---- screenshot: the last frame Android drew, as an 8-bit gray PNG. Stored (uncompressed) deflate blocks, so no zlib is needed. ---- */
+/* ---- screenshot: the last frame Android drew, as an 8-bit gray PNG, or an 8-bit RGB PNG when the color plane is given. Stored (uncompressed) deflate blocks, so no zlib is needed. ---- */
 static uint32_t crc_tab[256];
 static uint32_t crc_run(uint32_t c, const uint8_t* p, size_t n) {
     if (!crc_tab[1]) for (uint32_t i = 0; i < 256; i++) { uint32_t v = i; for (int k = 0; k < 8; k++) v = (v & 1) ? 0xedb88320u ^ (v >> 1) : v >> 1; crc_tab[i] = v; }
@@ -600,11 +600,18 @@ static int png_chunk(FILE* f, const char* type, const uint8_t* d, uint32_t n) {
     put32(b, c ^ 0xffffffffu);
     return fwrite(b, 1, 4, f) == 4 ? 0 : -1;
 }
-static int save_png(const char* path, const uint8_t* g, unsigned w, unsigned h) {
-    size_t rawn = (size_t)(w + 1) * h, nblk = (rawn + 65534) / 65535, zn = 2 + nblk * 5 + rawn + 4;
+static int save_png(const char* path, const uint8_t* g, const uint8_t* rgba, unsigned w, unsigned h) {
+    unsigned bp = rgba ? 3 : 1;   /* bytes per pixel of the PNG */
+    size_t rawn = (size_t)(w * bp + 1) * h, nblk = (rawn + 65534) / 65535, zn = 2 + nblk * 5 + rawn + 4;
     uint8_t* raw = malloc(rawn); uint8_t* z = malloc(zn);
     if (!raw || !z) { free(raw); free(z); return -1; }
-    for (unsigned y = 0; y < h; y++) { raw[(size_t)y * (w + 1)] = 0; memcpy(raw + (size_t)y * (w + 1) + 1, g + (size_t)y * w, w); }
+    for (unsigned y = 0; y < h; y++) {
+        uint8_t* row = raw + (size_t)y * (w * bp + 1);
+        row[0] = 0;
+        if (!rgba) { memcpy(row + 1, g + (size_t)y * w, w); continue; }
+        const uint8_t* q = rgba + (size_t)y * w * 4;
+        for (unsigned x = 0; x < w; x++, q += 4) { row[1 + x * 3] = q[0]; row[2 + x * 3] = q[1]; row[3 + x * 3] = q[2]; }
+    }
     size_t o = 0; z[o++] = 0x78; z[o++] = 0x01;
     for (size_t i = 0; i < rawn; i += 65535) {
         size_t n = rawn - i < 65535 ? rawn - i : 65535;
@@ -614,7 +621,7 @@ static int save_png(const char* path, const uint8_t* g, unsigned w, unsigned h) 
     uint32_t a = 1, s2 = 0;
     for (size_t i = 0; i < rawn; i++) { a = (a + raw[i]) % 65521; s2 = (s2 + a) % 65521; }
     put32(z + o, (s2 << 16) | a); o += 4;
-    uint8_t ih[13] = { 0 }; put32(ih, w); put32(ih + 4, h); ih[8] = 8;
+    uint8_t ih[13] = { 0 }; put32(ih, w); put32(ih + 4, h); ih[8] = 8; ih[9] = rgba ? 2 : 0;
     char tmp[420]; snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE* f = fopen(tmp, "wb"); int rc = -1;
     if (f) {
@@ -949,7 +956,7 @@ int main(int argc, char** argv) {
                     strftime(ts, sizeof ts, "%Y%m%d_%H%M%S", &tmv);
                     mkdir(shots_dir, 0777);
                     snprintf(out, sizeof out, "%s/screenshot_%s.png", shots_dir, ts);
-                    printf("screenshot: %s %s\n", out, save_png(out, sdata, g_panel_w, g_panel_h) == 0 ? "saved" : "FAILED");
+                    printf("screenshot: %s %s\n", out, save_png(out, sdata, (color_enabled && rgb_plane && fb_bytes == 4) ? rgb_plane : NULL, g_panel_w, g_panel_h) == 0 ? "saved" : "FAILED");
                     repaint = 2;                          /* full flashing redraw, so that the user sees that a screenshot was taken */
                 }
             }

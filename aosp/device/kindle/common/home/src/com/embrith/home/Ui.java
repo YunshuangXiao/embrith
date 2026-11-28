@@ -193,11 +193,34 @@ public final class Ui {
                 @Override public void onShow(android.content.DialogInterface di) {
                     sideBySide(d);
                     plain(d);
+                    if ("1".equals(Ctl.get("COLOR", "0"))) heavy(d);
                     View m = d.findViewById(android.R.id.message);
                     if (m instanceof TextView) ((TextView) m).setLineSpacing(dp(ctx, 4), 1f);   // some air between the lines of the message
                 }
             });
             return d;
+        }
+
+        /** Color display: the texts of the dialog (title, message, list items, input) are black and have a heavier stroke, like Ui.text; the buttons keep their color. */
+        private static void heavy(android.app.AlertDialog d) {
+            heavy(d.getWindow().getDecorView());
+            final android.widget.ListView lv = d.getListView();
+            if (lv != null) lv.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
+                @Override public void onChildViewAdded(View parent, View child) { heavy(child); }   // the rows are made when the list is laid out
+                @Override public void onChildViewRemoved(View parent, View child) { }
+            });
+        }
+
+        private static void heavy(View v) {
+            if (v instanceof TextView) {
+                TextView t = (TextView) v;
+                t.getPaint().setFakeBoldText(true);
+                if (!(v instanceof android.widget.Button)) t.setTextColor(Color.BLACK);
+            }
+            if (v instanceof ViewGroup) {
+                ViewGroup g = (ViewGroup) v;
+                for (int i = 0; i < g.getChildCount(); i++) heavy(g.getChildAt(i));
+            }
         }
 
         /**
