@@ -101,7 +101,7 @@ final class CalendarView extends View {
     @Override
     protected void onDraw(Canvas cv) {
         Context c = getContext();
-        int theme = com.embrith.home.Prefs.libAccent(c);
+        int theme = com.embrith.home.Prefs.calAccent(c, mode == CHECK);
         boolean themed = theme != Color.BLACK;   // the theme color of the library (the color display is on): gradients instead of grays
         int cw = getWidth() / 7;
         paint.setTextAlign(Paint.Align.CENTER);

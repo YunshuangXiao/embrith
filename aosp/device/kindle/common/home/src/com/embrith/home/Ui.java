@@ -1048,6 +1048,7 @@ public final class Ui {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
         private boolean on;
+        int slot;   // which color of the palette this switch takes in the multicolor mode (set by switchRow)
 
         Toggle(Context c) {
             super(c);
@@ -1079,7 +1080,7 @@ public final class Ui {
             paint.setStrokeWidth(s);
             if (on) {
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(Prefs.accent(getContext()));
+                paint.setColor(Prefs.accent(getContext(), slot));
                 c.drawRoundRect(r, rad, rad, paint);
                 paint.setColor(Color.WHITE);
                 c.drawCircle(cx, cy, kr, paint);
@@ -1111,7 +1112,7 @@ public final class Ui {
                     p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(sw);
                     p.setStrokeCap(Paint.Cap.ROUND); p.setStrokeJoin(Paint.Join.ROUND);
                     cv.drawRoundRect(new RectF(sw, sw, w - sw, h - sw), dp(getContext(), 3), dp(getContext(), 3), p);
-                    p.setColor(isEnabled() ? Prefs.accent(getContext()) : Color.GRAY);   // the mark inside: the accent color (black unless the color display is on)
+                    p.setColor(isEnabled() ? Prefs.accent(getContext(), CheckRow.this.label.getText().toString().hashCode()) : Color.GRAY);   // the mark inside: the accent color (black unless the color display is on)
                     if (on && index > 0) {
                         p.setStyle(Paint.Style.FILL);
                         p.setTextSize(h * 0.62f);
@@ -1242,6 +1243,7 @@ public final class Ui {
     public static SwitchRow switchRow(Context c, String label, boolean on, final OnToggle cb) {
         final SwitchRow r = new SwitchRow(c);
         r.label.setText(label);
+        r.toggle.slot = label.hashCode();
         r.toggle.setOn(on);
         r.setClickable(true);
         r.setOnClickListener(new View.OnClickListener() {

@@ -179,7 +179,7 @@ final class ControlPanel {
         col.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams wide = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         flBar = levelBar(col, "暗", "亮", fl, "light_set");
-        col.addView(check("自动亮度", st.get("FL_AUTO"), "fl_auto"), wide);
+        if ("1".equals(st.get("FL_AUTO")) || "0".equals(st.get("FL_AUTO"))) col.addView(check("自动亮度", st.get("FL_AUTO"), "fl_auto"), wide);   // no auto brightness on this device: no switch
         amberBar = levelBar(col, "冷", "暖", amber, "warm_set");
         col.addView(Ui.checkRow(c, "按时间自动启用色温", "1".equals(Ctl.get("AMBER_SCHED", "0")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Ctl.set("AMBER_SCHED", on ? "1" : "0"); }

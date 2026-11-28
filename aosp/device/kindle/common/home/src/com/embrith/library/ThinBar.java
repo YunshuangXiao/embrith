@@ -34,7 +34,7 @@ final class ThinBar extends View {
         float thin = Math.max(2f, Ui.dp(getContext(), 1.5f)), thick = Ui.dp(getContext(), 6);
         float left = Ui.dp(getContext(), 4), right = w - left;
         float split = left + (right - left) * pct / 100f;
-        paint.setColor(com.embrith.home.Prefs.libAccent(getContext()));
+        paint.setColor(com.embrith.home.Prefs.libAccent(getContext(), 2));
         paint.setStyle(Paint.Style.FILL);
         c.drawRoundRect(new RectF(split, mid - thin / 2, right, mid + thin / 2), thin / 2, thin / 2, paint);
         if (pct > 0) c.drawRoundRect(new RectF(left, mid - thick / 2, split, mid + thick / 2), thick / 2, thick / 2, paint);

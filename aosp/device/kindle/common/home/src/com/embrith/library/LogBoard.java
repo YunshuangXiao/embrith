@@ -272,7 +272,7 @@ final class LogBoard {
         float size = inTitle ? 15 : GOAL_FONT * 0.875f;
         b.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
         android.graphics.drawable.Drawable ic = act.getResources().getDrawable(com.embrith.home.R.drawable.ic_square_pen, null).mutate();   // Lucide square-pen
-        ic.setTint(com.embrith.home.Prefs.libAccent(act));
+        ic.setTint(com.embrith.home.Prefs.libAccent(act, 3));
         int z = sp(size);
         if (inTitle) b.setTypeface(null, android.graphics.Typeface.BOLD);
         // line box = ascent..descent (no font padding); the icon is centred on the line box, so move it by the distance between the line
@@ -314,7 +314,7 @@ final class LogBoard {
         String all = head + " " + dot + reading + "   " + dot + app;
         android.text.SpannableString sp = new android.text.SpannableString(all);
         int i = head.length() + 1, j = all.indexOf(dot, i + dot.length());
-        sp.setSpan(new android.text.style.ForegroundColorSpan(com.embrith.home.Prefs.libAccent(act)), i, i + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sp.setSpan(new android.text.style.ForegroundColorSpan(com.embrith.home.Prefs.libAccent(act, 4)), i, i + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sp.setSpan(new android.text.style.ForegroundColorSpan(0xFF808080), j, j + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         TextView tv = text("", 16, false);
         tv.setText(sp);
@@ -728,7 +728,7 @@ final class LogBoard {
         b.setBackground(bg);
         b.setPadding(Ui.dp(c, 2), Ui.dp(c, 2), Ui.dp(c, 2), Ui.dp(c, 2));
         View fill = new View(c);
-        fill.setBackgroundColor(com.embrith.home.Prefs.libAccent(c));
+        fill.setBackgroundColor(com.embrith.home.Prefs.libAccent(c, 2));
         b.addView(fill, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, pct));
         b.addView(new View(c), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 100 - pct));
         return b;

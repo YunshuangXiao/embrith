@@ -212,10 +212,11 @@ cmd_icons() {         # candidates for icons.map, and the properties of powerd -
 }
 
 # powerd property name for "auto brightness" differs between firmwares: conf/default.conf FL_AUTO_PROP wins, otherwise the name is
-# guessed from `lipc-probe -v`. Empty = not available (the panel shows it greyed out).
+# guessed from `lipc-probe -v`. Empty = not available (the panel hides it). It also needs a readable alsLux: no light sensor value, no auto brightness.
 lipc_props_detect() {
   P=$(timeout 10 lipc-probe -v com.lab126.powerd 2>/dev/null | tr -s ' \t:,' '\n\n\n\n' | grep -E '^[A-Za-z][A-Za-z0-9_]+$' | sort -u)
   fa=${FL_AUTO_PROP:-$(echo "$P" | grep -iE 'auto.?bright|bright.?auto|auto.?(fl|light)|(fl|light).?auto' | grep -viE '^als' | head -n 1)}
+  [ -n "$fa" ] && { als=$(timeout 5 lipc-get-prop com.lab126.powerd alsLux 2>/dev/null | tr -dc '0-9'); [ -n "$als" ] || fa=; }
   printf 'FL_AUTO_PROP=%s\n' "$fa" > "$ST/lipcprops"
   say "powerd: auto brightness '${fa:-none}' (FL_AUTO_PROP in conf/default.conf overrides)"
 }
