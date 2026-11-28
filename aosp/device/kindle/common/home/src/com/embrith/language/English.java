@@ -1080,6 +1080,19 @@ public final class English {
         p("一律不用翻页动画.", "Never use the page turn animation.");
         // ---- AccentActivity, BackupActivity, theme color
         p("黑色(默认)", "Black (default)");
+        p("多彩", "Multicolor");
+        p("色板", "Palette");
+        p("编辑色板", "Edit palette");
+        p("颜色1", "Color 1");
+        p("颜色2", "Color 2");
+        p("颜色3", "Color 3");
+        p("颜色4", "Color 4");
+        p("颜色5", "Color 5");
+        p("打卡日历颜色", "Check-in calendar color");
+        p("统计日历颜色", "Statistics calendar color");
+        p("跟随书库主题色(默认)", "Follow the library theme color (default)");
+        p("日历的颜色, 默认跟随书库主题色. 只在开启彩色显示时生效. 自定义的色值格式是 #RRGGBB, 例如 #0050C8.", "The color of the calendar, by default the library theme color. Only in effect while the color display is on. A custom value has the format #RRGGBB, for example #0050C8.");
+        p("色板里的颜色用于主题色的多彩模式, 也可以直接选作主题色. 色值格式是 #RRGGBB, 例如 #0050C8.", "The palette colors are used by the multicolor theme color and can also be picked as the theme color. The value format is #RRGGBB, for example #0050C8.");
         p("红色", "Red");
         p("橙色", "Orange");
         p("绿色", "Green");

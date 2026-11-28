@@ -79,6 +79,7 @@
         <activity android:name=".PowerMenuActivity" android:label="重启与退出" android:screenOrientation="portrait" android:theme="@style/PlainPanel"
             android:excludeFromRecents="true" android:launchMode="singleTop" />
         <activity android:name=".AccentActivity" android:label="主题色" android:screenOrientation="portrait" />
+        <activity android:name=".PaletteActivity" android:label="色板" android:screenOrientation="portrait" />
         <activity android:name=".ChoiceActivity" android:label="选择" android:screenOrientation="portrait" />
         <activity android:name=".WallpaperActivity" android:label="壁纸与锁屏" android:screenOrientation="portrait" />
         <activity android:name=".SleepActivity" android:label="休眠" android:screenOrientation="portrait"

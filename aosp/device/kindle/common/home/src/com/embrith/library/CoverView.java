@@ -52,6 +52,7 @@ final class CoverView {
         iv.setScaleType(ImageView.ScaleType.FIT_XY);   // the bitmap is already made at the size of the frame
         box.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         final Ribbon tag = new Ribbon(act);
+        tag.slot = f.getName().hashCode();   // the multicolor mode: one palette color per book
         tag.setVisibility(View.GONE);
         int side = Math.max(Ui.dp(act, 44), cw * 38 / 100);
         box.addView(tag, new FrameLayout.LayoutParams(side, side, Gravity.RIGHT | Gravity.TOP));
@@ -141,6 +142,7 @@ final class CoverView {
         private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path path = new Path();
         private String text = "";
+        int slot;
 
         Ribbon(Context c) {
             super(c);
@@ -156,7 +158,7 @@ final class CoverView {
         }
 
         @Override protected void onDraw(Canvas cv) {
-            band.setColor(Prefs.libAccent(getContext()));   // the theme color of the library (black unless the color display is on)
+            band.setColor(Prefs.libAccent(getContext(), slot));   // the theme color of the library (black unless the color display is on)
             float s = getWidth();
             float c1 = s * 0.40f, c2 = s * 0.88f;   // the band lies between the lines x - y = c1 and x - y = c2
             path.reset();

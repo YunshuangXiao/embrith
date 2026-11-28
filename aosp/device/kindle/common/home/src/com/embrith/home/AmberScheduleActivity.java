@@ -86,7 +86,7 @@ public class AmberScheduleActivity extends Activity {
         barRow.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 18), 0);
         barRow.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52)));
         Ui.addPlain(g, barRow);
-        Ui.add(g, Ui.switchRow(this, "自动调整亮度", "1".equals(st.get("FL_AUTO")), new Ui.OnToggle() {
+        if ("1".equals(st.get("FL_AUTO")) || "0".equals(st.get("FL_AUTO"))) Ui.add(g, Ui.switchRow(this, "自动调整亮度", "1".equals(st.get("FL_AUTO")), new Ui.OnToggle() {
             @Override public void toggled(boolean on) { Ctl.put("fl_auto", on ? "1" : "0"); }
         }));
 

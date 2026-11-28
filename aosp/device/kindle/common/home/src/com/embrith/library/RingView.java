@@ -72,7 +72,7 @@ final class RingView extends View {
         paint.setStrokeCap(Paint.Cap.ROUND);
         float done = 288f * pct / 100f;
         // like the level bars: a thin line for what is left, a thicker bar for the part done (both with round ends)
-        int theme = com.embrith.home.Prefs.libAccent(getContext());
+        int theme = com.embrith.home.Prefs.libAccent(getContext(), 1);
         paint.setColor(theme);
         paint.setStrokeWidth(thin);
         cv.drawArc(box, 126 + done, 288 - done, false, paint);

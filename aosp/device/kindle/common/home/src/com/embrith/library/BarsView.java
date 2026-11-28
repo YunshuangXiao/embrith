@@ -37,11 +37,11 @@ final class BarsView extends View {
         long max = 1;
         for (long v : values) max = Math.max(max, v);
         float cw = w / n, bw = cw * 0.56f;
-        int theme = com.embrith.home.Prefs.libAccent(getContext());
         paint.setTextAlign(Paint.Align.CENTER);
         for (int i = 0; i < n; i++) {
             float cx = cw * i + cw / 2f;
             float bh = values[i] > 0 ? Math.max(Ui.dp(getContext(), 3), (base - topH) * values[i] / max) : Ui.dp(getContext(), 2);
+            int theme = com.embrith.home.Prefs.libAccent(getContext(), i);   // the multicolor mode: one palette color per bar
             paint.setStyle(Paint.Style.FILL);
             if (theme == Color.BLACK) paint.setColor(i == mark ? Color.BLACK : 0xFF999999);
             else paint.setColor(i == mark ? theme : com.embrith.home.Prefs.mix(theme, 0.3f + 0.7f * values[i] / max));   // the theme gradient: the longer the bar, the deeper the color

@@ -533,6 +533,12 @@ public class MenuActivity extends Activity {
             Ui.add(g, Ui.nav(this, "主题色", "", new View.OnClickListener() {
                 @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, AccentActivity.class).putExtra("key", "lib_accent")); }
             }));
+            Ui.add(g, Ui.nav(this, "打卡日历颜色", "", new View.OnClickListener() {
+                @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, AccentActivity.class).putExtra("key", "cal_check_accent")); }
+            }));
+            Ui.add(g, Ui.nav(this, "统计日历颜色", "", new View.OnClickListener() {
+                @Override public void onClick(View v) { startActivity(new Intent(MenuActivity.this, AccentActivity.class).putExtra("key", "cal_heat_accent")); }
+            }));
         }
 
         g = section("TXT 章节", "章节正则\t自己写一个正则式, 书里的每一行(去掉行首行尾的空白)只要能匹配上就算章节标题; 对不上或少于两章时用自动检测. 改了以后重新打开书生效, 阅读位置可能偏移.\n\n"
